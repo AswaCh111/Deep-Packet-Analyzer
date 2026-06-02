@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepTrace — Packet Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#020810;--bg2:#050d1a;--bg3:#08111f;
+  --surface:rgba(0,200,255,0.04);--border:rgba(0,200,255,0.12);
+  --cyan:#00d4ff;--cyan2:#00ffcc;--blue:#0066ff;
+  --red:#ff3366;--orange:#ff6600;--yellow:#ffcc00;--green:#00ff88;
+  --text:#c8e8ff;--muted:#4a6a88;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:48px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.logo-sm{font-family:'Orbitron',monospace;font-size:1rem;font-weight:900;color:var(--cyan);letter-spacing:2px}
+.logo-sm span{color:#fff}
+.topbar-center{display:flex;gap:4px}
+.tab-btn{padding:6px 16px;background:transparent;border:1px solid transparent;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.72rem;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;text-decoration:none;display:inline-block}
+.tab-btn:hover,.tab-btn.active{color:var(--cyan);border-color:var(--border);background:var(--surface)}
+.sys-time{font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:var(--cyan)}
+
+/* MAIN LAYOUT */
+.main{display:grid;grid-template-columns:340px 1fr;flex:1;overflow:hidden}
+/* INPUT PANEL */
+.input-panel{border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;overflow-y:auto}
+.ip-section{padding:16px;border-bottom:1px solid var(--border)}
+.ip-title{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px}
+.ip-label{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block}
+.ip-input,.ip-select,.ip-textarea{
+  width:100%;background:rgba(0,0,0,0.4);border:1px solid var(--border);
+  color:var(--text);padding:8px 10px;font-family:'Share Tech Mono',monospace;
+  font-size:0.72rem;transition:border-color 0.2s;margin-bottom:10px;
+}
+.ip-input:focus,.ip-select:focus,.ip-textarea:focus{outline:none;border-color:var(--cyan)}
+.ip-select option{background:var(--bg2)}
+.ip-textarea{height:80px;resize:none;font-size:0.68rem;line-height:1.6}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.analyze-btn{
+  width:100%;padding:12px;background:linear-gradient(135deg,var(--cyan),var(--blue));
+  border:none;color:#000;font-family:'Orbitron',monospace;font-size:0.8rem;
+  font-weight:700;letter-spacing:2px;cursor:pointer;text-transform:uppercase;
+  transition:all 0.3s;margin-top:6px;
+}
+.analyze-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,102,255,0.4)}
+.analyze-btn:active{transform:translateY(0)}
+
+/* SAMPLE BUTTONS */
+.sample-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.sample-btn{
+  padding:7px;background:var(--surface);border:1px solid var(--border);
+  color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.62rem;
+  cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:all 0.2s;
+  text-align:center;
+}
+.sample-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* RESULTS PANEL */
+.results-panel{display:flex;flex-direction:column;overflow:hidden}
+.results-top{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.rt-card{background:var(--bg2);border:1px solid var(--border);padding:10px;text-align:center}
+.rtc-val{font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700}
+.rtc-label{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.results-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+
+/* LAYER CARDS */
+.layer-card{background:var(--bg2);border:1px solid var(--border);overflow:hidden;transition:all 0.3s}
+.lc-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;cursor:pointer;background:var(--surface);
+  font-family:'Share Tech Mono',monospace;font-size:0.7rem;letter-spacing:1px;
+  text-transform:uppercase;
+}
+.lc-header:hover{background:rgba(0,212,255,0.08)}
+.lc-title{color:var(--cyan);display:flex;align-items:center;gap:8px}
+.lc-badge{background:rgba(0,212,255,0.15);color:var(--cyan2);padding:2px 8px;font-size:0.6rem;border-radius:2px}
+.lc-arrow{color:var(--muted);transition:transform 0.3s}
+.lc-body{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:6px;border-top:1px solid var(--border)}
+.lc-row{display:flex;justify-content:space-between;padding:5px 8px;background:rgba(0,0,0,0.2);border-left:2px solid transparent;transition:border-color 0.2s}
+.lc-row:hover{border-left-color:var(--cyan)}
+.lc-key{font-family:'Share Tech Mono',monospace;font-size:0.63rem;color:var(--muted)}
+.lc-val{font-family:'Share Tech Mono',monospace;font-size:0.63rem;color:var(--text)}
+.lc-val.flag{color:var(--red)}
+.lc-val.ok{color:var(--green)}
+.lc-val.warn{color:var(--yellow)}
+.hex-view{
+  grid-column:1/-1;background:rgba(0,0,0,0.5);padding:12px;
+  font-family:'Share Tech Mono',monospace;font-size:0.62rem;
+  color:var(--cyan2);line-height:1.9;word-break:break-all;border:1px solid rgba(0,212,255,0.08);
+  max-height:140px;overflow-y:auto;
+}
+.hex-offset{color:var(--muted);margin-right:8px}
+.hex-byte{margin-right:3px}
+.hex-byte.high{color:var(--red);font-weight:bold}
+
+/* THREAT PANEL */
+.threat-panel{background:var(--bg2);border:1px solid var(--border)}
+.tp-header{padding:12px 14px;background:rgba(255,51,102,0.05);border-bottom:1px solid rgba(255,51,102,0.15);font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--red);text-transform:uppercase;letter-spacing:2px}
+.tp-body{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ti-item{padding:10px;background:rgba(255,51,102,0.04);border:1px solid rgba(255,51,102,0.12);display:flex;gap:10px;align-items:flex-start}
+.ti-icon{font-size:1.2rem;flex-shrink:0}
+.ti-name{font-family:'Orbitron',monospace;font-size:0.7rem;color:#ff8899;margin-bottom:3px;letter-spacing:0.5px}
+.ti-desc{font-size:0.75rem;color:var(--muted);line-height:1.5}
+.ti-badge{display:inline-block;margin-top:4px;padding:2px 6px;font-family:'Share Tech Mono',monospace;font-size:0.58rem;border-radius:2px}
+
+/* CHARTS ROW */
+.analysis-charts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.ac-box{background:var(--bg2);border:1px solid var(--border);padding:12px}
+.ac-title{font-family:'Share Tech Mono',monospace;font-size:0.63rem;color:var(--cyan);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px}
+
+/* EMPTY STATE */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);text-align:center;gap:12px}
+.es-icon{font-size:4rem;opacity:0.3}
+.es-text{font-family:'Share Tech Mono',monospace;font-size:0.8rem;letter-spacing:2px}
+.es-sub{font-size:0.85rem;color:var(--muted);max-width:300px;line-height:1.6}
+
+/* LOADING */
+.analyzing{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:20px}
+.a-spinner{width:60px;height:60px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:spin 0.8s linear infinite}
+.a-text{font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:var(--cyan);letter-spacing:2px}
+.a-steps{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeUp 0.4s ease both}
+
+.statusbar{height:28px;background:var(--bg3);border-top:1px solid var(--border);display:flex;align-items:center;gap:24px;padding:0 16px}
+.sb-item{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sb-dot{width:5px;height:5px;border-radius:50%}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo-sm">Deep<span>Trace</span> <span style="font-size:0.6rem;color:var(--muted);margin-left:8px">PACKET ANALYZER</span></div>
+  <div class="topbar-center">
+    <a class="tab-btn" href="soc-dashboard.html">SOC Dashboard</a>
+    <a class="tab-btn active" href="packet-analyzer.html">Packet Analyzer</a>
+    <a class="tab-btn" href="threat-intel.html">Threat Intel</a>
+    <a class="tab-btn" href="api-docs.html">API Docs</a>
+  </div>
+  <div class="sys-time" id="clock">--:--:--</div>
+</div>
+
+<div class="main">
+  <!-- INPUT -->
+  <div class="input-panel">
+    <div class="ip-section">
+      <div class="ip-title">🔬 Packet Configuration</div>
+      <div class="row2">
+        <div>
+          <label class="ip-label">Source IP</label>
+          <input class="ip-input" id="src-ip" value="192.168.1.44" placeholder="Source IP">
+        </div>
+        <div>
+          <label class="ip-label">Destination IP</label>
+          <input class="ip-input" id="dst-ip" value="185.220.101.8" placeholder="Dest IP">
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label class="ip-label">Src Port</label>
+          <input class="ip-input" id="src-port" value="54321" placeholder="Port">
+        </div>
+        <div>
+          <label class="ip-label">Dst Port</label>
+          <input class="ip-input" id="dst-port" value="53" placeholder="Port">
+        </div>
+      </div>
+      <label class="ip-label">Protocol</label>
+      <select class="ip-select" id="protocol">
+        <option value="DNS">DNS</option>
+        <option value="HTTP">HTTP</option>
+        <option value="HTTPS">HTTPS</option>
+        <option value="SMTP">SMTP</option>
+        <option value="SSH">SSH</option>
+        <option value="TCP">TCP</option>
+        <option value="TLS">TLS</option>
+        <option value="FTP">FTP</option>
+      </select>
+      <div class="row2">
+        <div>
+          <label class="ip-label">TTL</label>
+          <input class="ip-input" id="ttl" value="64">
+        </div>
+        <div>
+          <label class="ip-label">Packet Size</label>
+          <input class="ip-input" id="pkt-size" value="1420" placeholder="bytes">
+        </div>
+      </div>
+      <label class="ip-label">Payload / Notes</label>
+      <textarea class="ip-textarea" id="payload-in" placeholder="Optional payload data or notes...">xn--dnscat2-srv.c2.maliciousdomain.ru TXT query</textarea>
+      <button class="analyze-btn" onclick="analyzePacket()">⚡ Analyze Packet</button>
+    </div>
+
+    <div class="ip-section">
+      <div class="ip-title">📂 Sample Scenarios</div>
+      <div class="sample-btns">
+        <button class="sample-btn" onclick="loadSample('dns')">DNS Tunnel</button>
+        <button class="sample-btn" onclick="loadSample('c2')">C2 Beacon</button>
+        <button class="sample-btn" onclick="loadSample('exfil')">Data Exfil</button>
+        <button class="sample-btn" onclick="loadSample('ssh')">SSH Brute</button>
+        <button class="sample-btn" onclick="loadSample('clean')">Clean HTTP</button>
+        <button class="sample-btn" onclick="loadSample('tls')">Bad TLS</button>
+      </div>
+    </div>
+
+    <div class="ip-section" style="flex:1">
+      <div class="ip-title">📜 Capture Log</div>
+      <div id="capture-log" style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);line-height:2;max-height:200px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-panel">
+    <div class="results-top" id="results-top" style="display:none">
+      <div class="rt-card">
+        <div class="rtc-val" id="rt-score" style="color:var(--red)">--</div>
+        <div class="rtc-label">Threat Score</div>
+      </div>
+      <div class="rt-card">
+        <div class="rtc-val" id="rt-proto" style="color:var(--cyan)">--</div>
+        <div class="rtc-label">Protocol</div>
+      </div>
+      <div class="rt-card">
+        <div class="rtc-val" id="rt-geo" style="color:var(--cyan2)">--</div>
+        <div class="rtc-label">Geo (Dst)</div>
+      </div>
+      <div class="rt-card">
+        <div class="rtc-val" id="rt-verdict" style="color:var(--red)">--</div>
+        <div class="rtc-label">Verdict</div>
+      </div>
+      <div class="rt-card">
+        <div class="rtc-val" id="rt-mitre" style="color:var(--yellow);font-size:0.8rem">--</div>
+        <div class="rtc-label">MITRE ATT&CK</div>
+      </div>
+    </div>
+    <div class="results-body" id="results-body">
+      <div class="empty-state">
+        <div class="es-icon">📦</div>
+        <div class="es-text">No Packet Analyzed</div>
+        <div class="es-sub">Configure a packet using the panel on the left, or load a sample scenario, then click Analyze Packet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="statusbar">
+  <div class="sb-item"><span class="sb-dot" style="background:var(--green)"></span>Engine Ready</div>
+  <div class="sb-item"><span class="sb-dot" style="background:var(--green)"></span>Signatures: 2.1M</div>
+  <div class="sb-item" id="analyzed-count"><span class="sb-dot" style="background:var(--cyan)"></span>Analyzed: 0 packets</div>
+  <div class="sb-item" style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted)" id="sb-time"></div>
+</div>
+
+<script>
+let analyzedCount = 0;
+setInterval(()=>{
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US',{hour12:false});
+  document.getElementById('sb-time').textContent = new Date().toLocaleString();
+},1000);
+
+const SAMPLES = {
+  dns:{src:'10.0.0.55',dst:'8.8.8.8',sport:53421,dport:53,proto:'DNS',ttl:64,size:512,payload:'xn--dnscat2-srv.exfil.c2server.ru TXT query\nBase64 payload: 4c4f52454d49505355...\nQuery entropy: HIGH (7.8 bits)\nSubdomain length: 63 chars (MAX)'},
+  c2:{src:'192.168.1.100',dst:'185.220.101.8',sport:49812,dport:443,proto:'HTTPS',ttl:128,size:284,payload:'TLS ClientHello to known Cobalt Strike C2\nJA3 fingerprint: 51c64c77e60f3980eea8ff955acfec21\nBeacon interval: 60s ±20% jitter\nHTTP malleable profile detected'},
+  exfil:{src:'192.168.5.22',dst:'104.26.14.200',sport:51234,dport:443,proto:'HTTPS',ttl:64,size:1480,payload:'Large outbound transfer: 2.4GB over 12 minutes\nDestination: cloud-storage.suspicious.net\nFiles detected: employee_records.xlsx, financials_Q4.pdf\nDLP policy violation: PII data'},
+  ssh:{src:'45.33.32.156',dst:'192.168.1.1',sport:22001,dport:22,proto:'SSH',ttl:45,size:156,payload:'SSH Authentication attempts: 847 in 3 minutes\nUsernames tried: root, admin, ubuntu, pi, user\nPasswords from rockyou.txt wordlist\nSource: Shodan-listed scanner 45.33.32.156'},
+  clean:{src:'192.168.1.200',dst:'172.217.14.100',sport:56123,dport:80,proto:'HTTP',ttl:64,size:420,payload:'GET /search?q=network+security HTTP/1.1\nHost: google.com\nUser-Agent: Mozilla/5.0 (Windows NT 10.0)\nAccept-Encoding: gzip, deflate\nConnection: keep-alive'},
+  tls:{src:'10.10.5.44',dst:'91.108.4.150',sport:49555,dport:443,proto:'TLS',ttl:64,size:340,payload:'TLS Certificate Error:\nIssuer: Self-Signed CA\nExpiry: 2023-06-01 (EXPIRED)\nSANs: None\nSSL version: TLSv1.0 (DEPRECATED)\nCipher: RC4-SHA (WEAK)'}
+};
+
+function loadSample(key){
+  const s = SAMPLES[key];
+  document.getElementById('src-ip').value = s.src;
+  document.getElementById('dst-ip').value = s.dst;
+  document.getElementById('src-port').value = s.sport;
+  document.getElementById('dst-port').value = s.dport;
+  document.getElementById('protocol').value = s.proto;
+  document.getElementById('ttl').value = s.ttl;
+  document.getElementById('pkt-size').value = s.size;
+  document.getElementById('payload-in').value = s.payload;
+  addLog(`Loaded sample: ${key.toUpperCase()} scenario`);
+}
+
+function addLog(msg){
+  const log = document.getElementById('capture-log');
+  const t = new Date().toLocaleTimeString('en-US',{hour12:false});
+  log.innerHTML = `<div style="color:var(--cyan2)">[${t}]</div><div style="color:var(--muted);margin-bottom:4px">${msg}</div>` + log.innerHTML;
+}
+
+function analyzePacket(){
+  const proto = document.getElementById('protocol').value;
+  const src = document.getElementById('src-ip').value;
+  const dst = document.getElementById('dst-ip').value;
+  const sport = document.getElementById('src-port').value;
+  const dport = document.getElementById('dst-port').value;
+  const ttl = document.getElementById('ttl').value;
+  const size = document.getElementById('pkt-size').value;
+  const payload = document.getElementById('payload-in').value;
+
+  addLog(`Analyzing ${proto} packet ${src}:${sport} → ${dst}:${dport}`);
+
+  // Show loading
+  document.getElementById('results-top').style.display = 'none';
+  document.getElementById('results-body').innerHTML = `
+    <div class="analyzing">
+      <div class="a-spinner"></div>
+      <div class="a-text">ANALYZING PACKET</div>
+      <div class="a-steps" id="step-text">Initializing DPI engine...</div>
+    </div>`;
+
+  // Simulate multi-step analysis
+  const steps = ['Parsing headers...','Reassembling flow...','Protocol identification...','Signature matching (2.1M sigs)...','Geo-IP lookup...','Threat intel correlation...','Generating report...'];
+  let si = 0;
+  const stepInt = setInterval(()=>{
+    document.getElementById('step-text').textContent = steps[si++];
+    if(si >= steps.length){ clearInterval(stepInt); showResults(proto,src,dst,sport,dport,ttl,size,payload); }
+  }, 220);
+}
+
+function getThreatProfile(proto, dst, payload){
+  const maliciousIPs = ['185.220.101.8','45.33.32.156','91.108.4.150','104.26.14.200'];
+  const isMalIP = maliciousIPs.includes(dst);
+  const isDNSTunnel = proto==='DNS' && payload.toLowerCase().includes('entropy');
+  const isC2 = payload.toLowerCase().includes('c2') || payload.toLowerCase().includes('cobalt');
+  const isSSH = proto==='SSH' && payload.toLowerCase().includes('847');
+  const isExfil = payload.toLowerCase().includes('exfil') || payload.toLowerCase().includes('2.4gb');
+  const isBadTLS = proto==='TLS' && payload.toLowerCase().includes('expired');
+  const isClean = proto==='HTTP' && payload.toLowerCase().includes('google.com');
+
+  if(isClean) return {score:5,verdict:'ALLOW',mitre:'-',geo:'US',threats:[],color:'var(--green)'};
+  if(isDNSTunnel) return {score:94,verdict:'BLOCK',mitre:'T1071.004',geo:'RU',threats:['DNS Tunneling','Data Exfiltration','C2 Communication'],color:'var(--red)'};
+  if(isC2) return {score:97,verdict:'BLOCK',mitre:'T1071.001',geo:'TOR',threats:['C2 Beacon','Malware Implant','Cobalt Strike'],color:'var(--red)'};
+  if(isSSH) return {score:88,verdict:'BLOCK',mitre:'T1021.004',geo:'US',threats:['Brute Force','Credential Stuffing','Unauthorized Access'],color:'var(--red)'};
+  if(isExfil) return {score:91,verdict:'BLOCK',mitre:'T1048.003',geo:'US',threats:['Data Exfiltration','DLP Violation','PII Exposure'],color:'var(--red)'};
+  if(isBadTLS) return {score:72,verdict:'ALERT',mitre:'T1573',geo:'RU',threats:['Expired Certificate','Weak Cipher','TLS Downgrade'],color:'var(--yellow)'};
+  if(isMalIP) return {score:85,verdict:'BLOCK',mitre:'T1190',geo:'RU',threats:['Threat-Intel Match','Known Malicious IP'],color:'var(--red)'};
+  return {score:35,verdict:'MONITOR',mitre:'T1071',geo:'US',threats:['Anomalous Traffic'],color:'var(--yellow)'};
+}
+
+function genHex(size){
+  const bytes = Math.min(parseInt(size)||64, 80);
+  let hex = '';
+  for(let i=0;i<bytes;i++){
+    const b = Math.floor(Math.random()*256).toString(16).padStart(2,'0');
+    const isHigh = Math.random()<0.05;
+    hex += `<span class="hex-byte${isHigh?' high':''}">${b}</span>`;
+    if((i+1)%16===0) hex += '<br>';
+  }
+  return hex;
+}
+
+function showResults(proto,src,dst,sport,dport,ttl,size,payload){
+  analyzedCount++;
+  document.getElementById('analyzed-count').innerHTML = `<span class="sb-dot" style="background:var(--cyan)"></span>Analyzed: ${analyzedCount} packets`;
+
+  const profile = getThreatProfile(proto,dst,payload);
+  addLog(`Result: ${profile.verdict} — Score ${profile.score}/100 — ${profile.mitre}`);
+
+  // Update top metrics
+  document.getElementById('results-top').style.display = 'grid';
+  document.getElementById('rt-score').textContent = profile.score+'/100';
+  document.getElementById('rt-score').style.color = profile.color;
+  document.getElementById('rt-proto').textContent = proto;
+  document.getElementById('rt-geo').textContent = profile.geo;
+  document.getElementById('rt-verdict').textContent = profile.verdict;
+  document.getElementById('rt-verdict').style.color = profile.color;
+  document.getElementById('rt-mitre').textContent = profile.mitre;
+
+  const tcpFlags = ['SYN','ACK','PSH','FIN','RST','URG'];
+  const flags = tcpFlags.filter(()=>Math.random()>0.5).join(' ') || 'PSH ACK';
+
+  document.getElementById('results-body').innerHTML = `
+    <div class="fade-in" style="display:flex;flex-direction:column;gap:10px">
+      <!-- LAYER 2/3 -->
+      <div class="layer-card">
+        <div class="lc-header" onclick="toggleLayer(this)">
+          <div class="lc-title">🌐 Network Layer (IP Header) <span class="lc-badge">IPv4</span></div>
+          <span class="lc-arrow">▼</span>
+        </div>
+        <div class="lc-body">
+          <div class="lc-row"><span class="lc-key">Source Address</span><span class="lc-val">${src}</span></div>
+          <div class="lc-row"><span class="lc-key">Destination</span><span class="lc-val">${dst}</span></div>
+          <div class="lc-row"><span class="lc-key">TTL</span><span class="lc-val ${ttl<50?'warn':''}">${ttl}</span></div>
+          <div class="lc-row"><span class="lc-key">IP Version</span><span class="lc-val">4</span></div>
+          <div class="lc-row"><span class="lc-key">Header Length</span><span class="lc-val">20 bytes</span></div>
+          <div class="lc-row"><span class="lc-key">Total Length</span><span class="lc-val">${size} bytes</span></div>
+          <div class="lc-row"><span class="lc-key">Fragmented</span><span class="lc-val ok">No</span></div>
+          <div class="lc-row"><span class="lc-key">Checksum</span><span class="lc-val ok">Valid</span></div>
+          <div class="hex-view"><span class="hex-offset">0000</span>${genHex(20)}</div>
+        </div>
+      </div>
+
+      <!-- LAYER 4 -->
+      <div class="layer-card">
+        <div class="lc-header" onclick="toggleLayer(this)">
+          <div class="lc-title">📡 Transport Layer (${proto==='UDP'||proto==='DNS'?'UDP':'TCP'}) <span class="lc-badge">${proto==='DNS'?'UDP':'TCP'}</span></div>
+          <span class="lc-arrow">▼</span>
+        </div>
+        <div class="lc-body">
+          <div class="lc-row"><span class="lc-key">Source Port</span><span class="lc-val">${sport}</span></div>
+          <div class="lc-row"><span class="lc-key">Dest Port</span><span class="lc-val">${dport}</span></div>
+          <div class="lc-row"><span class="lc-key">Flags</span><span class="lc-val">${flags}</span></div>
+          <div class="lc-row"><span class="lc-key">Seq Number</span><span class="lc-val">0x${Math.floor(Math.random()*0xFFFFFFFF).toString(16).toUpperCase()}</span></div>
+          <div class="lc-row"><span class="lc-key">Window Size</span><span class="lc-val">65535</span></div>
+          <div class="lc-row"><span class="lc-key">Checksum</span><span class="lc-val ok">0x${Math.floor(Math.random()*0xFFFF).toString(16).toUpperCase()}</span></div>
+          <div class="lc-row"><span class="lc-key">Payload Size</span><span class="lc-val">${Math.max(0,parseInt(size)-40)} bytes</span></div>
+          <div class="lc-row"><span class="lc-key">RTT Est.</span><span class="lc-val">${(Math.random()*50+5).toFixed(1)}ms</span></div>
+        </div>
+      </div>
+
+      <!-- APPLICATION LAYER -->
+      <div class="layer-card">
+        <div class="lc-header" onclick="toggleLayer(this)">
+          <div class="lc-title">🔬 Application Layer (${proto}) <span class="lc-badge">L7 DPI</span></div>
+          <span class="lc-arrow">▼</span>
+        </div>
+        <div class="lc-body">
+          <div class="lc-row"><span class="lc-key">App Protocol</span><span class="lc-val">${proto}</span></div>
+          <div class="lc-row"><span class="lc-key">Detected By</span><span class="lc-val">DPI L7 + nDPI</span></div>
+          <div class="lc-row"><span class="lc-key">Confidence</span><span class="lc-val ok">99.2%</span></div>
+          <div class="lc-row"><span class="lc-key">Encrypted</span><span class="lc-val">${proto==='HTTPS'||proto==='TLS'||proto==='SSH'?'Yes':'No'}</span></div>
+          <div class="lc-row"><span class="lc-key">Entropy</span><span class="lc-val ${profile.score>70?'flag':'ok'}">${profile.score>70?'7.8 (HIGH)':'3.2 (NORMAL)'}</span></div>
+          <div class="lc-row"><span class="lc-key">Flow State</span><span class="lc-val">ESTABLISHED</span></div>
+          <div class="lc-body" style="grid-column:1/-1;border:none;padding:0">
+            <div class="hex-view" style="grid-column:1/-1"><div style="color:var(--muted);margin-bottom:4px">// Payload Inspector</div>${payload.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
+          </div>
+        </div>
+      </div>
+
+      ${profile.threats.length>0?`
+      <!-- THREATS -->
+      <div class="threat-panel fade-in">
+        <div class="tp-header">⚠ ${profile.threats.length} Threat Indicator(s) Detected</div>
+        <div class="tp-body">
+          ${profile.threats.map(t=>`
+          <div class="ti-item">
+            <div class="ti-icon">🚨</div>
+            <div>
+              <div class="ti-name">${t}</div>
+              <div class="ti-desc">Pattern matched against threat intelligence database. MITRE: ${profile.mitre}</div>
+              <span class="ti-badge" style="background:rgba(255,51,102,0.15);color:var(--red);border:1px solid rgba(255,51,102,0.3)">CONFIRMED</span>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`:''}
+
+      <!-- CHARTS -->
+      <div class="analysis-charts fade-in">
+        <div class="ac-box">
+          <div class="ac-title">Entropy Analysis</div>
+          <canvas id="entropyChart" height="120"></canvas>
+        </div>
+        <div class="ac-box">
+          <div class="ac-title">Byte Distribution</div>
+          <canvas id="byteChart" height="120"></canvas>
+        </div>
+        <div class="ac-box">
+          <div class="ac-title">Flow Behavior</div>
+          <canvas id="flowChart" height="120"></canvas>
+        </div>
+      </div>
+    </div>`;
+
+  // Draw mini charts
+  const isHigh = profile.score > 60;
+  new Chart(document.getElementById('entropyChart'),{
+    type:'line',
+    data:{labels:Array(20).fill(''),datasets:[{data:Array(20).fill(0).map((_,i)=>isHigh?5+Math.random()*3:1+Math.random()*2),borderColor:isHigh?'var(--red)':'var(--green)',backgroundColor:isHigh?'rgba(255,51,102,0.1)':'rgba(0,255,136,0.1)',fill:true,tension:0.4,pointRadius:0,borderWidth:1.5}]},
+    options:{responsive:true,animation:{duration:600},plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{color:'#3a5a79',font:{size:8},maxTicksLimit:3},grid:{color:'rgba(0,212,255,0.05)'}}}}
+  });
+  new Chart(document.getElementById('byteChart'),{
+    type:'bar',
+    data:{labels:['0-31','32-63','64-127','128-191','192-255'],datasets:[{data:isHigh?[2,15,45,38,52]:[5,45,35,10,5],backgroundColor:isHigh?'rgba(255,51,102,0.7)':'rgba(0,212,255,0.7)',borderWidth:0}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#3a5a79',font:{size:7}},grid:{color:'rgba(0,212,255,0.05)'}},y:{ticks:{color:'#3a5a79',font:{size:8},maxTicksLimit:3},grid:{color:'rgba(0,212,255,0.05)'}}}}
+  });
+  new Chart(document.getElementById('flowChart'),{
+    type:'line',
+    data:{labels:Array(15).fill(''),datasets:[
+      {data:Array(15).fill(0).map(()=>Math.floor(Math.random()*100)+50),label:'Out',borderColor:'var(--cyan)',pointRadius:0,tension:0.4,borderWidth:1.5},
+      {data:Array(15).fill(0).map(()=>Math.floor(Math.random()*30)+10),label:'In',borderColor:'var(--cyan2)',pointRadius:0,tension:0.4,borderWidth:1}
+    ]},
+    options:{responsive:true,animation:{duration:600},plugins:{legend:{labels:{color:'#5a7a99',font:{size:8},boxWidth:6}}},scales:{x:{display:false},y:{ticks:{color:'#3a5a79',font:{size:8},maxTicksLimit:3},grid:{color:'rgba(0,212,255,0.05)'}}}}
+  });
+}
+
+function toggleLayer(header){
+  const body = header.nextElementSibling;
+  const arrow = header.querySelector('.lc-arrow');
+  if(body.style.display==='none'){body.style.display='grid';arrow.textContent='▼';}
+  else{body.style.display='none';arrow.textContent='▶';}
+}
+</script>
+</body>
+</html>

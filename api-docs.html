@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepTrace — API Documentation</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#020810;--bg2:#050d1a;--bg3:#08111f;--surface:rgba(0,200,255,0.04);--border:rgba(0,200,255,0.12);--cyan:#00d4ff;--cyan2:#00ffcc;--blue:#0066ff;--red:#ff3366;--orange:#ff6600;--yellow:#ffcc00;--green:#00ff88;--text:#c8e8ff;--muted:#4a6a88}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:48px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.logo-sm{font-family:'Orbitron',monospace;font-size:1rem;font-weight:900;color:var(--cyan);letter-spacing:2px}
+.logo-sm span{color:#fff}
+.topbar-center{display:flex;gap:4px}
+.tab-btn{padding:6px 16px;background:transparent;border:1px solid transparent;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.72rem;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;text-decoration:none;display:inline-block}
+.tab-btn:hover,.tab-btn.active{color:var(--cyan);border-color:var(--border);background:var(--surface)}
+.sys-time{font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:var(--cyan)}
+
+.main-wrap{flex:1;display:grid;grid-template-columns:240px 1fr 360px;overflow:hidden}
+
+/* LEFT NAV */
+.doc-nav{background:var(--bg2);border-right:1px solid var(--border);padding:16px;overflow-y:auto}
+.dn-section{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;padding:8px 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px;margin-top:10px}
+.dn-section:first-child{margin-top:0}
+.dn-link{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;
+  font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--muted);
+  cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;
+  text-decoration:none;
+}
+.dn-link:hover,.dn-link.active{color:var(--cyan);border-left-color:var(--cyan);background:var(--surface)}
+.method-tag{padding:2px 5px;border-radius:2px;font-size:0.58rem;font-weight:bold;flex-shrink:0}
+.get{background:rgba(0,255,136,0.15);color:var(--green);border:1px solid rgba(0,255,136,0.3)}
+.post{background:rgba(0,102,255,0.15);color:#6699ff;border:1px solid rgba(0,102,255,0.3)}
+.delete{background:rgba(255,51,102,0.15);color:var(--red);border:1px solid rgba(255,51,102,0.3)}
+.put{background:rgba(255,204,0,0.15);color:var(--yellow);border:1px solid rgba(255,204,0,0.3)}
+
+/* DOC CONTENT */
+.doc-content{overflow-y:auto;padding:24px 28px;display:flex;flex-direction:column;gap:24px}
+.doc-section{display:flex;flex-direction:column;gap:16px}
+.ds-title{font-family:'Orbitron',monospace;font-size:1.2rem;color:#fff;letter-spacing:1px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.ds-sub{font-family:'Orbitron',monospace;font-size:0.85rem;color:var(--cyan);letter-spacing:1px;margin-bottom:6px}
+.ds-text{font-size:0.95rem;color:var(--muted);line-height:1.7}
+.ds-text strong{color:var(--text)}
+
+/* ENDPOINT */
+.endpoint{background:var(--bg2);border:1px solid var(--border);overflow:hidden;transition:border-color 0.2s}
+.endpoint:hover{border-color:rgba(0,212,255,0.25)}
+.ep-header{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;background:var(--surface);transition:background 0.2s}
+.ep-header:hover{background:rgba(0,212,255,0.08)}
+.ep-path{font-family:'Share Tech Mono',monospace;font-size:0.8rem;color:var(--text);flex:1}
+.ep-desc{font-family:'Rajdhani',sans-serif;font-size:0.85rem;color:var(--muted)}
+.ep-body{padding:16px;border-top:1px solid var(--border);display:none}
+.ep-body.show{display:block}
+
+/* PARAMS */
+.param-table{width:100%;border-collapse:collapse;margin-bottom:12px}
+.param-table th{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);text-align:left;padding:6px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:1px;font-weight:normal}
+.param-table td{padding:8px 6px;border-bottom:1px solid rgba(0,200,255,0.04);font-family:'Share Tech Mono',monospace;font-size:0.65rem;vertical-align:top}
+.param-name{color:var(--cyan2)}
+.param-type{color:var(--muted)}
+.param-req{color:var(--red);font-size:0.58rem}
+.param-opt{color:var(--muted);font-size:0.58rem}
+.param-desc{color:var(--text);font-size:0.68rem}
+
+/* CODE BLOCKS */
+.code-block{background:rgba(0,0,0,0.5);border:1px solid rgba(0,212,255,0.1);padding:14px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;line-height:1.8;overflow-x:auto;position:relative}
+.code-lang{position:absolute;top:6px;right:8px;font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.code-copy{position:absolute;top:4px;right:50px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:2px 8px;font-family:'Share Tech Mono',monospace;font-size:0.58rem;cursor:pointer;transition:all 0.2s;text-transform:uppercase;letter-spacing:1px}
+.code-copy:hover{border-color:var(--cyan);color:var(--cyan)}
+.kw{color:#ff7c6e}
+.str{color:var(--cyan2)}
+.key{color:var(--cyan)}
+.num{color:var(--yellow)}
+.cm{color:var(--muted);font-style:italic}
+.fn{color:#c792ea}
+
+/* TRY IT */
+.try-section{background:var(--bg3);border:1px solid var(--border);border-left:2px solid var(--cyan);padding:14px;margin-top:10px}
+.try-title{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px}
+.try-row{display:grid;grid-template-columns:100px 1fr;gap:8px;align-items:center;margin-bottom:8px}
+.try-label{font-family:'Share Tech Mono',monospace;font-size:0.63rem;color:var(--muted);text-transform:uppercase}
+.try-input,.try-select{background:rgba(0,0,0,0.5);border:1px solid var(--border);color:var(--text);padding:6px 10px;font-family:'Share Tech Mono',monospace;font-size:0.7rem;width:100%;transition:border-color 0.2s}
+.try-input:focus,.try-select:focus{outline:none;border-color:var(--cyan)}
+.try-select option{background:var(--bg2)}
+.try-btn{padding:8px 20px;background:linear-gradient(135deg,var(--cyan),var(--blue));border:none;color:#000;font-family:'Share Tech Mono',monospace;font-size:0.72rem;letter-spacing:2px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;margin-top:6px}
+.try-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,212,255,0.3)}
+
+/* RIGHT: RESPONSE PANEL */
+.response-panel{background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.rp-header{padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between}
+.rp-title{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:2px}
+.rp-status{font-family:'Share Tech Mono',monospace;font-size:0.7rem}
+.status-200{color:var(--green)}
+.status-4xx{color:var(--red)}
+.rp-body{flex:1;overflow-y:auto;padding:14px;font-family:'Share Tech Mono',monospace;font-size:0.65rem;line-height:1.9}
+.rp-meta{padding:10px 16px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:6px;font-family:'Share Tech Mono',monospace;font-size:0.62rem}
+.rp-meta-item{color:var(--muted)}
+.rp-meta-item span{color:var(--text)}
+.json-key{color:var(--cyan)}
+.json-str{color:var(--cyan2)}
+.json-num{color:var(--yellow)}
+.json-bool{color:var(--orange)}
+.json-null{color:var(--muted)}
+
+/* AUTH */
+.auth-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.15);margin-bottom:10px}
+.auth-icon{font-size:1rem}
+.auth-key{font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--green)}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.fade-in{animation:fadeIn 0.3s ease}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo-sm">Deep<span>Trace</span> <span style="font-size:0.6rem;color:var(--muted);margin-left:8px">API DOCUMENTATION</span></div>
+  <div class="topbar-center">
+    <a class="tab-btn" href="soc-dashboard.html">SOC Dashboard</a>
+    <a class="tab-btn" href="packet-analyzer.html">Packet Analyzer</a>
+    <a class="tab-btn" href="threat-intel.html">Threat Intel</a>
+    <a class="tab-btn active" href="api-docs.html">API Docs</a>
+  </div>
+  <div class="sys-time" id="clock">--:--:--</div>
+</div>
+
+<div class="main-wrap">
+  <!-- NAV -->
+  <div class="doc-nav">
+    <div class="dn-section">Getting Started</div>
+    <a class="dn-link active" onclick="scrollTo('intro')">📖 Introduction</a>
+    <a class="dn-link" onclick="scrollTo('auth')">🔑 Authentication</a>
+    <a class="dn-link" onclick="scrollTo('errors')">⚠ Error Codes</a>
+    <div class="dn-section">Packet Analysis</div>
+    <a class="dn-link" onclick="scrollTo('analyze')"><span class="method-tag post">POST</span>/analyze</a>
+    <div class="dn-section">Threat Intelligence</div>
+    <a class="dn-link" onclick="scrollTo('ioc')"><span class="method-tag get">GET</span>/ioc/lookup</a>
+    <div class="dn-section">Network Monitoring</div>
+    <a class="dn-link" onclick="scrollTo('metrics')"><span class="method-tag get">GET</span>/metrics</a>
+    <a class="dn-link" onclick="scrollTo('block')"><span class="method-tag post">POST</span>/block</a>
+  </div>
+
+  <!-- DOCS BODY -->
+  <div class="doc-content" id="doc-content">
+    <!-- INTRO -->
+    <div class="doc-section" id="s-intro">
+      <div class="ds-title">DeepTrace API v2.4</div>
+      <div class="ds-text">The DeepTrace REST API provides programmatic access to <strong>Deep Packet Inspection</strong>, real-time network traffic analysis, threat intelligence lookups, and automated incident response capabilities.<br><br>Base URL: <strong style="color:var(--cyan);font-family:'Share Tech Mono',monospace">https://api.deeptrace.io/v2</strong></div>
+      <div class="auth-header"><div class="auth-icon">✅</div><div class="auth-key">API Status: OPERATIONAL — All Systems Normal — Latency 12ms</div></div>
+      <div class="code-block"><span class="code-lang">bash</span><button class="code-copy" onclick="copyCode(this)">COPY</button>
+<span class="cm"># Quick start — analyze a packet</span>
+<span class="kw">curl</span> -X POST https://api.deeptrace.io/v2/analyze \
+  -H <span class="str">"Authorization: Bearer dt_live_your_api_key"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"src_ip":"192.168.1.44","dst_ip":"185.220.101.8","protocol":"DNS","dst_port":53}'</span>
+      </div>
+    </div>
+
+    <!-- AUTH -->
+    <div class="doc-section" id="s-auth">
+      <div class="ds-title">Authentication</div>
+      <div class="ds-text">All API requests require a Bearer token in the <strong>Authorization</strong> header.</div>
+      <div class="try-section">
+        <div class="try-title">🔑 Configure API Key</div>
+        <div class="try-row"><div class="try-label">API Key</div><input class="try-input" id="api-key" value="dt_live_demo_key_abc123"></div>
+        <button class="try-btn" onclick="testAuth()">Test Authentication</button>
+      </div>
+    </div>
+
+    <!-- ANALYZE ENDPOINT -->
+    <div class="doc-section" id="s-analyze">
+      <div class="ds-title">POST /analyze</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggleEndpoint(this)"><span class="method-tag post">POST</span><span class="ep-path">/analyze</span><span class="ep-desc">Submit packet for DPI analysis</span></div>
+      <div class="ep-body show">
+        <div class="try-section"><div class="try-title">⚡ Try It Live</div>
+        <div class="try-row"><div class="try-label">src_ip</div><input class="try-input" id="t-src" value="192.168.1.44"></div>
+        <div class="try-row"><div class="try-label">dst_ip</div><input class="try-input" id="t-dst" value="185.220.101.8"></div>
+        <div class="try-row"><div class="try-label">Protocol</div><select class="try-select" id="t-proto"><option>DNS</option><option>HTTP</option><option>HTTPS</option><option>SMTP</option><option>SSH</option><option>TLS</option></select></div>
+        <div class="try-row"><div class="try-label">dst_port</div><input class="try-input" id="t-port" value="53"></div>
+        <button class="try-btn" onclick="runAnalyze()">▶ Send Request</button></div>
+      </div></div>
+    </div>
+
+    <!-- IOC LOOKUP -->
+    <div class="doc-section" id="s-ioc">
+      <div class="ds-title">GET /ioc/lookup</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggleEndpoint(this)"><span class="method-tag get">GET</span><span class="ep-path">/ioc/lookup</span><span class="ep-desc">Look up threat intelligence</span></div>
+      <div class="ep-body show">
+        <div class="try-section"><div class="try-title">⚡ Try It Live</div>
+        <div class="try-row"><div class="try-label">indicator</div><input class="try-input" id="ioc-query" value="185.220.101.8"></div>
+        <div class="try-row"><div class="try-label">type</div><select class="try-select" id="ioc-type"><option>ip</option><option>domain</option><option>sha256</option></select></div>
+        <button class="try-btn" onclick="runIOC()">▶ Send Request</button></div>
+      </div></div>
+    </div>
+
+    <!-- METRICS -->
+    <div class="doc-section" id="s-metrics">
+      <div class="ds-title">GET /metrics</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggleEndpoint(this)"><span class="method-tag get">GET</span><span class="ep-path">/metrics</span><span class="ep-desc">Get live network metrics</span></div>
+      <div class="ep-body">
+        <div class="try-section"><div class="try-title">⚡ Try It Live</div>
+        <div class="try-row"><div class="try-label">window</div><input class="try-input" id="m-window" value="60"></div>
+        <button class="try-btn" onclick="runMetrics()">▶ Send Request</button></div>
+      </div></div>
+    </div>
+
+    <!-- BLOCK -->
+    <div class="doc-section" id="s-block">
+      <div class="ds-title">POST /block</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggleEndpoint(this)"><span class="method-tag post">POST</span><span class="ep-path">/block</span><span class="ep-desc">Block an IP address</span></div>
+      <div class="ep-body">
+        <div class="try-section"><div class="try-title">⚡ Try It Live</div>
+        <div class="try-row"><div class="try-label">target</div><input class="try-input" id="b-target" value="185.220.101.8"></div>
+        <div class="try-row"><div class="try-label">reason</div><input class="try-input" id="b-reason" value="C2 server detected"></div>
+        <div class="try-row"><div class="try-label">duration</div><input class="try-input" id="b-dur" value="86400"></div>
+        <button class="try-btn" onclick="runBlock()">▶ Send Request</button></div>
+      </div></div>
+    </div>
+
+    <!-- ERRORS -->
+    <div class="doc-section" id="s-errors">
+      <div class="ds-title">Error Codes</div>
+      <table class="param-table">
+        <tr><th>Code</th><th>Status</th><th>Meaning</th></tr>
+        <tr><td class="param-name">DT-001</td><td style="color:var(--red)">401</td><td>Invalid API key</td></tr>
+        <tr><td class="param-name">DT-002</td><td style="color:var(--red)">403</td><td>Insufficient permissions</td></tr>
+        <tr><td class="param-name">DT-003</td><td style="color:var(--yellow)">429</td><td>Rate limit exceeded</td></tr>
+       </table>
+    </div>
+  </div>
+
+  <!-- RESPONSE PANEL -->
+  <div class="response-panel">
+    <div class="rp-header"><div class="rp-title">API Response</div><div class="rp-status" id="rp-status">Waiting for request...</div></div>
+    <div class="rp-meta" id="rp-meta" style="display:none">
+      <div class="rp-meta-item">Time: <span id="rp-time">--</span></div>
+      <div class="rp-meta-item">Size: <span id="rp-size">--</span></div>
+      <div class="rp-meta-item">Status: <span id="rp-st">--</span></div>
+    </div>
+    <div class="rp-body" id="rp-body">Use "Try It Live" panels to test API endpoints.</div>
+  </div>
+</div>
+
+<script>
+// Clock
+setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false}),1000);
+
+// Helper functions
+function scrollTo(id){ document.getElementById('s-'+id)?.scrollIntoView({behavior:'smooth'}); }
+function toggleEndpoint(header){ const body = header.nextElementSibling; body.classList.toggle('show'); }
+function randInt(a,b){ return Math.floor(Math.random()*(b-a)+a); }
+function randFloat(a,b){ return (Math.random()*(b-a)+a).toFixed(2); }
+
+function copyCode(btn){
+  const block = btn.closest('.code-block');
+  const text = block.innerText.replace('COPY','').replace(/\n\n/g,'\n').trim();
+  navigator.clipboard.writeText(text);
+  btn.textContent = '✓ COPIED';
+  setTimeout(()=>btn.textContent='COPY',2000);
+}
+
+function showResponse(status, data, time){
+  const statusEl = document.getElementById('rp-status');
+  const bodyEl = document.getElementById('rp-body');
+  const metaEl = document.getElementById('rp-meta');
+  statusEl.className = `rp-status ${status>=400?'status-4xx':'status-200'}`;
+  statusEl.textContent = `${status} ${status===200?'OK':status===201?'Created':'Error'}`;
+  metaEl.style.display = 'grid';
+  document.getElementById('rp-time').textContent = time+'ms';
+  document.getElementById('rp-size').textContent = JSON.stringify(data).length+'B';
+  document.getElementById('rp-st').textContent = status;
+  bodyEl.innerHTML = `<div class="fade-in"><pre style="color:var(--cyan2);font-family:'Share Tech Mono',monospace;font-size:0.65rem">${JSON.stringify(data, null, 2)}</pre></div>`;
+}
+
+// API Functions
+async function testAuth(){
+  await new Promise(r=>setTimeout(r,300));
+  showResponse(200,{authenticated:true,key_type:'live',scope:['read','write','block'],organization:'Acme Corp'},45);
+}
+
+async function runAnalyze(){
+  const src = document.getElementById('t-src').value;
+  const dst = document.getElementById('t-dst').value;
+  const proto = document.getElementById('t-proto').value;
+  const port = document.getElementById('t-port').value;
+  document.getElementById('rp-status').textContent = 'Analyzing...';
+  await new Promise(r=>setTimeout(r,800));
+  const isMalicious = ['185.220.101.8','91.108.4.150','45.33.32.156'].includes(dst);
+  const score = isMalicious ? randInt(82,98) : randInt(2,20);
+  showResponse(200,{
+    packet_id: `PKT-${Math.random().toString(36).substr(2,8).toUpperCase()}`,
+    analysis:{src_ip:src, dst_ip:dst, protocol:proto, dst_port:parseInt(port), threat_score:score, verdict:score>70?'BLOCK':'ALLOW'}
+  }, randInt(80,250));
+}
+
+async function runIOC(){
+  const ind = document.getElementById('ioc-query').value;
+  await new Promise(r=>setTimeout(r,500));
+  const known = {'185.220.101.8':{risk_score:98,verdict:'MALICIOUS',threat_actor:'APT28'}};
+  const result = known[ind] || {risk_score:randInt(10,60),verdict:'UNKNOWN'};
+  showResponse(200,{indicator:ind,...result}, randInt(60,200));
+}
+
+async function runMetrics(){
+  await new Promise(r=>setTimeout(r,300));
+  showResponse(200,{packets_per_second:randInt(2000000,3000000),active_flows:randInt(12000,16000),threats_blocked:randInt(800,900)}, randInt(20,80));
+}
+
+async function runBlock(){
+  const target = document.getElementById('b-target').value;
+  await new Promise(r=>setTimeout(r,400));
+  showResponse(201,{block_id:`BLK-${Math.random().toString(36).substr(2,8).toUpperCase()}`,target:target,status:'blocked'}, randInt(80,200));
+}
+</script>
+</body>
+</html>

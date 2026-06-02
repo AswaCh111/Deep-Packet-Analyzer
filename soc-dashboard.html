@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepTrace — Live SOC Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+Dashboard</a>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#020810;--bg2:#050d1a;--bg3:#08111f;
+  --surface:rgba(0,200,255,0.04);--border:rgba(0,200,255,0.12);
+  --cyan:#00d4ff;--cyan2:#00ffcc;--blue:#0066ff;
+  --red:#ff3366;--orange:#ff6600;--yellow:#ffcc00;--green:#00ff88;
+  --text:#c8e8ff;--muted:#4a6a88;
+  --glow:0 0 20px rgba(0,212,255,0.35);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh;display:flex;flex-direction:column}
+/* TOP NAV */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:48px;background:var(--bg2);
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.logo-sm{font-family:'Orbitron',monospace;font-size:1rem;font-weight:900;color:var(--cyan);letter-spacing:2px}
+.logo-sm span{color:#fff}
+.topbar-center{display:flex;gap:4px}
+.tab-btn{
+  padding:6px 16px;background:transparent;border:1px solid transparent;
+  color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.72rem;
+  letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;
+  text-decoration:none;display:inline-block;
+}
+.tab-btn:hover,.tab-btn.active{color:var(--cyan);border-color:var(--border);background:var(--surface)}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.sys-time{font-family:'Share Tech Mono',monospace;font-size:0.75rem;color:var(--cyan)}
+.live-ind{display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--cyan2)}
+.ldot{width:7px;height:7px;background:var(--cyan2);border-radius:50%;animation:pulse 1.2s ease infinite;box-shadow:0 0 8px var(--cyan2)}
+/* MAIN LAYOUT */
+.dash-main{display:grid;grid-template-columns:220px 1fr 260px;flex:1;overflow:hidden;gap:0}
+/* LEFT PANEL */
+.left-panel{border-right:1px solid var(--border);padding:12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;background:var(--bg2)}
+.panel-title{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;padding:4px 0 8px;border-bottom:1px solid var(--border)}
+.metric-mini{padding:10px;background:var(--surface);border:1px solid var(--border);transition:border-color 0.3s}
+.metric-mini:hover{border-color:var(--cyan)}
+.mm-label{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.mm-val{font-family:'Orbitron',monospace;font-size:1.3rem;font-weight:700;color:var(--cyan);text-shadow:var(--glow);line-height:1.2}
+.mm-sub{font-size:0.72rem;color:var(--muted)}
+.mm-bar{height:3px;background:rgba(255,255,255,0.08);margin-top:6px;border-radius:2px;overflow:hidden}
+.mm-fill{height:3px;border-radius:2px;transition:width 0.5s}
+/* CENTER */
+.center-panel{display:flex;flex-direction:column;overflow:hidden}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 10px 5px;flex:0 0 auto}
+.chart-box{background:var(--bg2);border:1px solid var(--border);padding:12px;position:relative}
+.chart-box-title{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+.chart-box canvas{max-height:120px}
+/* PACKET FEED */
+.feed-wrap{flex:1;overflow:hidden;padding:0 10px 10px;display:flex;flex-direction:column}
+.feed-header{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:6px}
+.feed-title{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:2px}
+.feed-controls{display:flex;gap:6px}
+.fc-btn{padding:3px 10px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.6rem;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all 0.2s}
+.fc-btn:hover,.fc-btn.on{border-color:var(--cyan);color:var(--cyan)}
+.packet-table{overflow-y:auto;flex:1}
+.pt-head{display:grid;grid-template-columns:80px 130px 130px 70px 70px 80px 1fr;gap:4px;padding:4px 6px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:1}
+.pt-head span{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.pt-row{display:grid;grid-template-columns:80px 130px 130px 70px 70px 80px 1fr;gap:4px;padding:4px 6px;border-bottom:1px solid rgba(0,200,255,0.04);cursor:pointer;transition:background 0.15s;align-items:center}
+.pt-row:hover{background:rgba(0,212,255,0.06)}
+.pt-row span{font-family:'Share Tech Mono',monospace;font-size:0.68rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-time{color:var(--muted)}
+.pt-ip{color:var(--text)}
+.pt-port{color:var(--cyan2)}
+.pt-proto{padding:2px 6px;border-radius:2px;font-size:0.6rem;text-align:center}
+.proto-http{background:rgba(0,212,255,0.15);color:var(--cyan)}
+.proto-dns{background:rgba(0,255,204,0.15);color:var(--cyan2)}
+.proto-tls{background:rgba(0,102,255,0.2);color:#6699ff}
+.proto-smtp{background:rgba(255,204,0,0.15);color:var(--yellow)}
+.proto-ssh{background:rgba(0,255,136,0.15);color:var(--green)}
+.proto-tcp{background:rgba(128,128,128,0.15);color:#888}
+.pt-size{color:var(--muted)}
+.pt-status{padding:2px 6px;border-radius:2px;font-size:0.6rem}
+.st-clean{background:rgba(0,255,136,0.1);color:var(--green)}
+.st-suspect{background:rgba(255,204,0,0.15);color:var(--yellow)}
+.st-blocked{background:rgba(255,51,102,0.15);color:var(--red)}
+/* RIGHT PANEL */
+.right-panel{border-left:1px solid var(--border);padding:12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;background:var(--bg2)}
+.alert-item{padding:10px;background:var(--surface);border:1px solid var(--border);border-left:3px solid;transition:all 0.3s}
+.alert-item.crit{border-left-color:var(--red);background:rgba(255,51,102,0.04)}
+.alert-item.high{border-left-color:var(--orange);background:rgba(255,102,0,0.04)}
+.alert-item.med{border-left-color:var(--yellow);background:rgba(255,204,0,0.04)}
+.alert-item.low{border-left-color:var(--cyan);background:rgba(0,212,255,0.04)}
+.alert-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+.alert-name{font-family:'Orbitron',monospace;font-size:0.7rem;color:#fff;letter-spacing:0.5px}
+.alert-badge{font-family:'Share Tech Mono',monospace;font-size:0.58rem;padding:2px 6px;border-radius:2px}
+.ab-crit{background:rgba(255,51,102,0.2);color:var(--red)}
+.ab-high{background:rgba(255,102,0,0.2);color:var(--orange)}
+.ab-med{background:rgba(255,204,0,0.2);color:var(--yellow)}
+.ab-low{background:rgba(0,212,255,0.2);color:var(--cyan)}
+.alert-src{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted)}
+.alert-time{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);margin-top:3px}
+/* PACKET INSPECTOR MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(2,8,16,0.85);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity 0.2s}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{width:700px;max-width:95vw;background:var(--bg2);border:1px solid var(--cyan);box-shadow:0 0 60px rgba(0,212,255,0.2);max-height:80vh;overflow-y:auto}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:rgba(0,212,255,0.05)}
+.modal-title{font-family:'Orbitron',monospace;font-size:0.9rem;color:var(--cyan);letter-spacing:1px}
+.modal-close{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;transition:all 0.2s}
+.modal-close:hover{border-color:var(--red);color:var(--red)}
+.modal-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.mi-section{background:var(--surface);border:1px solid var(--border);padding:14px}
+.mi-section-title{font-family:'Share Tech Mono',monospace;font-size:0.63rem;color:var(--cyan);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.mi-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(0,200,255,0.05)}
+.mi-row:last-child{border:none}
+.mi-key{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted)}
+.mi-val{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text)}
+.payload-box{grid-column:1/-1;background:rgba(0,0,0,0.4);border:1px solid var(--border);padding:14px;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--cyan2);line-height:1.8;word-break:break-all}
+.threat-score-bar{height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin-top:8px}
+.ts-fill{height:8px;border-radius:4px;transition:width 1s ease}
+/* STATUS FOOTER */
+.statusbar{height:28px;background:var(--bg3);border-top:1px solid var(--border);display:flex;align-items:center;gap:24px;padding:0 16px;flex-shrink:0}
+.sb-item{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sb-dot{width:5px;height:5px;border-radius:50%}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes rowFlash{0%{background:rgba(0,212,255,0.15)}100%{background:transparent}}
+.new-row{animation:rowFlash 1s ease}
+.new-alert{animation:slideIn 0.3s ease}
+</style>
+</head>
+<body>
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo-sm">Deep<span>Trace</span> <span style="font-size:0.6rem;color:var(--muted);margin-left:8px">SOC OPERATIONS CENTER</span></div>
+  <div class="topbar-center">
+    <a class="tab-btn active" href="soc-dashboard.html">SOC Dashboard</a>
+    <a class="tab-btn" href="packet-analyzer.html">Packet Analyzer</a>
+    <a class="tab-btn" href="threat-intel.html">Threat Intel</a>
+    <a class="tab-btn" href="api-docs.html">API Docs</a>
+  </div>
+  <div class="topbar-right">
+    <div class="live-ind"><span class="ldot"></span>LIVE</div>
+    <div class="sys-time" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="dash-main">
+  <!-- LEFT -->
+  <div class="left-panel">
+    <div class="panel-title">Network Metrics</div>
+    <div class="metric-mini">
+      <div class="mm-label">Packets/sec</div>
+      <div class="mm-val" id="pps">2,441,823</div>
+      <div class="mm-sub">↑ from baseline</div>
+      <div class="mm-bar"><div class="mm-fill" id="pps-bar" style="width:78%;background:linear-gradient(90deg,var(--cyan),var(--blue))"></div></div>
+    </div>
+    <div class="metric-mini">
+      <div class="mm-label">Active Flows</div>
+      <div class="mm-val" id="flows">14,392</div>
+      <div class="mm-sub">TCP+UDP sessions</div>
+      <div class="mm-bar"><div class="mm-fill" id="flows-bar" style="width:62%;background:linear-gradient(90deg,var(--cyan2),var(--blue))"></div></div>
+    </div>
+    <div class="metric-mini">
+      <div class="mm-label">Throughput</div>
+      <div class="mm-val" id="throughput">8.4 GB</div>
+      <div class="mm-sub">Inbound this hour</div>
+      <div class="mm-bar"><div class="mm-fill" id="tp-bar" style="width:55%;background:linear-gradient(90deg,var(--blue),#0099ff)"></div></div>
+    </div>
+    <div class="metric-mini">
+      <div class="mm-label">Threats Blocked</div>
+      <div class="mm-val" id="blocked" style="color:var(--red)">847</div>
+      <div class="mm-sub">Today — all severity</div>
+      <div class="mm-bar"><div class="mm-fill" id="blk-bar" style="width:30%;background:linear-gradient(90deg,var(--red),var(--orange))"></div></div>
+    </div>
+    <div class="metric-mini">
+      <div class="mm-label">Risk Score</div>
+      <div class="mm-val" id="risk" style="color:var(--yellow)">6.2</div>
+      <div class="mm-sub">⚠ Elevated</div>
+      <div class="mm-bar"><div class="mm-fill" id="risk-bar" style="width:62%;background:linear-gradient(90deg,var(--yellow),var(--orange))"></div></div>
+    </div>
+    <div class="metric-mini">
+      <div class="mm-label">DPI Engines</div>
+      <div class="mm-val" style="color:var(--green)">16/16</div>
+      <div class="mm-sub">All nodes healthy</div>
+      <div class="mm-bar"><div class="mm-fill" style="width:100%;background:linear-gradient(90deg,var(--green),var(--cyan2))"></div></div>
+    </div>
+    <div class="metric-mini">
+      <div class="mm-label">Signature DB</div>
+      <div class="mm-val" style="font-size:1rem;color:var(--cyan)">v24.06.02</div>
+      <div class="mm-sub">Updated 3m ago · 2.1M sigs</div>
+    </div>
+    <div class="panel-title" style="margin-top:6px">Protocol Split</div>
+    <div style="padding:8px;background:var(--surface);border:1px solid var(--border)">
+      <canvas id="miniProto" height="130"></canvas>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="center-panel">
+    <div class="charts-row">
+      <div class="chart-box">
+        <div class="chart-box-title">Traffic Volume — Last 60s</div>
+        <canvas id="trafficLine"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-box-title">Threat Events — Last 60s</div>
+        <canvas id="threatLine"></canvas>
+      </div>
+    </div>
+    <div class="feed-wrap">
+      <div class="feed-header">
+        <div class="feed-title">⬤ Live Packet Feed — <span id="pkt-count" style="color:var(--cyan2)">0</span> captured</div>
+        <div class="feed-controls">
+          <button class="fc-btn on" id="btn-pause" onclick="togglePause()">⏸ PAUSE</button>
+          <button class="fc-btn" onclick="filterFeed('all')" id="f-all">ALL</button>
+          <button class="fc-btn" onclick="filterFeed('threats')" id="f-threats">THREATS</button>
+          <button class="fc-btn" onclick="clearFeed()">CLEAR</button>
+        </div>
+      </div>
+      <div class="packet-table">
+        <div class="pt-head">
+          <span>Time</span><span>Source IP</span><span>Dest IP</span>
+          <span>Port</span><span>Protocol</span><span>Size</span><span>Status</span>
+        </div>
+        <div id="feed-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right-panel">
+    <div class="panel-title">🚨 Live Alerts</div>
+    <div id="alerts-container"></div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="sb-item"><span class="sb-dot" style="background:var(--green)"></span>DPI Engine: ACTIVE</div>
+  <div class="sb-item"><span class="sb-dot" style="background:var(--green)"></span>SIEM: CONNECTED</div>
+  <div class="sb-item"><span class="sb-dot" style="background:var(--yellow)"></span>Threat Feed: UPDATING</div>
+  <div class="sb-item"><span class="sb-dot" style="background:var(--green)"></span>Firewall: INLINE</div>
+  <div class="sb-item" style="margin-left:auto">Latency: <span id="latency" style="color:var(--cyan)">1.2ms</span></div>
+  <div class="sb-item">Drops: <span style="color:var(--green)">0.002%</span></div>
+</div>
+
+<!-- PACKET INSPECTOR MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📦 Packet Inspector</div>
+      <button class="modal-close" onclick="closeModal()">✕ CLOSE</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// CLOCK
+function updateClock(){
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US',{hour12:false});
+}
+setInterval(updateClock,1000); updateClock();
+
+// DATA GENERATORS
+const IPS = ['192.168.1.44','10.0.0.22','172.16.8.55','45.33.32.156','104.26.14.200','198.51.100.4','203.0.113.77','185.220.101.8','91.108.4.150','66.249.66.1','8.8.8.8','1.1.1.1'];
+const PORTS = [80,443,53,22,25,8080,8443,3389,445,21,110,587];
+const PROTOS = ['HTTP','HTTPS','DNS','SMTP','SSH','TCP','TLS','FTP'];
+const STATUSES = ['CLEAN','CLEAN','CLEAN','CLEAN','CLEAN','SUSPECT','BLOCKED'];
+const THREAT_NAMES = ['DNS Tunneling Detected','Malware C2 Beacon','Port Scan Activity','Data Exfiltration Attempt','Brute Force SSH','Suspicious DNS Query','TLS Fingerprint Mismatch','Botnet Heartbeat'];
+const SEVERITIES = ['crit','high','med','low'];
+
+function randIP(){ return IPS[Math.floor(Math.random()*IPS.length)]; }
+function randEl(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function now(){ return new Date().toLocaleTimeString('en-US',{hour12:false}); }
+function randInt(a,b){ return Math.floor(Math.random()*(b-a)+a); }
+function randFloat(a,b){ return (Math.random()*(b-a)+a).toFixed(2); }
+
+function genPacket(){
+  const proto = randEl(PROTOS);
+  const status = randEl(STATUSES);
+  return {
+    time: now(),
+    src: randIP(),
+    dst: randIP(),
+    port: randEl(PORTS),
+    proto,
+    size: randInt(64,1500)+'B',
+    status,
+    raw: genPayload(proto)
+  };
+}
+
+function genPayload(proto){
+  const payloads = {
+    HTTP: `GET /api/v2/users HTTP/1.1\nHost: internal.corp.net\nUser-Agent: Mozilla/5.0\nAccept: application/json\nX-Auth-Token: eyJhbGc...`,
+    HTTPS: `TLSv1.3 ClientHello\nSNI: analytics.corp.net\nCipher Suites: [TLS_AES_256_GCM_SHA384]\nExtensions: session_ticket, encrypt_then_mac`,
+    DNS: `Query: xn--dnscat2-srv.maliciousdomain.ru\nType: TXT\nPayload: 4c4f52454d49505355...base64\nAnomaly: HIGH ENTROPY`,
+    SMTP: `EHLO mail.corp.net\nMAIL FROM:<user@corp.net>\nRCPT TO:<external@gmail.com>\nSubject: Q4 Financial Data\nAttachment: report.xlsx (2.4MB)`,
+    SSH: `SSH-2.0-OpenSSH_8.9\nKex: curve25519-sha256\nAuth: publickey\nChannel: session\nCommand: cat /etc/passwd | base64`,
+    TCP: `SYN Flood Pattern\nFlags: [SYN] Seq=0\nWindow: 65535\nOptions: [mss 1460, sackOK]\nRate: 4200 pkt/s`,
+    TLS: `CertificateVerify\nSignature: RSA-PSS-SHA256\nServer: UNKNOWN CA\nExpiry: 2024-01-01 (EXPIRED)\nWarning: Self-signed`,
+    FTP: `USER anonymous\nPASS guest@\n226 Transfer complete\nRETR /pub/data/dump.sql.gz\nBytes: 48,293,112`
+  };
+  return payloads[proto] || 'Raw TCP stream data...';
+}
+
+// CHARTS
+const trafficData = Array(60).fill(0).map(()=>randInt(200,400));
+const threatData = Array(60).fill(0).map(()=>randInt(0,8));
+const labels60 = Array(60).fill('');
+
+const tcfg = {
+  type:'line',
+  data:{labels:labels60,datasets:[
+    {data:trafficData,borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,0.07)',fill:true,tension:0.4,pointRadius:0,borderWidth:1.5},
+    {data:trafficData.map(v=>v*0.6),borderColor:'#00ffcc',backgroundColor:'rgba(0,255,204,0.04)',fill:true,tension:0.4,pointRadius:0,borderWidth:1}
+  ]},
+  options:{responsive:true,animation:{duration:0},plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{color:'#3a5a79',font:{size:9},maxTicksLimit:4},grid:{color:'rgba(0,212,255,0.06)'}}}}
+};
+const thtcfg = {
+  type:'bar',
+  data:{labels:labels60,datasets:[{data:threatData,backgroundColor:threatData.map(v=>v>5?'rgba(255,51,102,0.7)':v>2?'rgba(255,204,0,0.6)':'rgba(0,102,255,0.5)'),borderWidth:0}]},
+  options:{responsive:true,animation:{duration:200},plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{color:'#3a5a79',font:{size:9},maxTicksLimit:4},grid:{color:'rgba(0,212,255,0.06)'}}}}
+};
+
+const trafficChart = new Chart(document.getElementById('trafficLine'),tcfg);
+const threatChart = new Chart(document.getElementById('threatLine'),thtcfg);
+
+// Mini protocol doughnut
+new Chart(document.getElementById('miniProto'),{
+  type:'doughnut',
+  data:{labels:['HTTPS','HTTP','DNS','SMTP','SSH','Other'],datasets:[{data:[58,12,15,6,5,4],backgroundColor:['rgba(0,212,255,0.8)','rgba(0,255,204,0.7)','rgba(0,102,255,0.8)','rgba(255,204,0,0.7)','rgba(0,255,136,0.7)','rgba(128,128,160,0.5)'],borderColor:'rgba(2,8,16,0.8)',borderWidth:2}]},
+  options:{responsive:true,cutout:'55%',plugins:{legend:{labels:{color:'#5a7a99',font:{family:'Share Tech Mono',size:9},padding:6,boxWidth:8}}}}
+});
+
+// FEED STATE
+let paused = false;
+let filterMode = 'all';
+let pktCount = 0;
+let feedRows = [];
+const MAX_ROWS = 100;
+
+function togglePause(){
+  paused = !paused;
+  const btn = document.getElementById('btn-pause');
+  btn.textContent = paused ? '▶ RESUME' : '⏸ PAUSE';
+  btn.classList.toggle('on', !paused);
+}
+function filterFeed(mode){
+  filterMode = mode;
+  document.querySelectorAll('.fc-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('f-'+mode)?.classList.add('on');
+  renderFeed();
+}
+function clearFeed(){ feedRows=[]; renderFeed(); pktCount=0; }
+
+function renderFeed(){
+  const body = document.getElementById('feed-body');
+  const rows = filterMode === 'threats' ? feedRows.filter(r=>r.status!=='CLEAN') : feedRows;
+  body.innerHTML = rows.slice(-60).reverse().map((p,i)=>`
+    <div class="pt-row ${i===0&&!paused?'new-row':''}" onclick="openModal(${rows.length-1-i})">
+      <span class="pt-time">${p.time}</span>
+      <span class="pt-ip">${p.src}</span>
+      <span class="pt-ip">${p.dst}</span>
+      <span class="pt-port">:${p.port}</span>
+      <span><span class="pt-proto proto-${p.proto.toLowerCase()}">${p.proto}</span></span>
+      <span class="pt-size">${p.size}</span>
+      <span><span class="pt-status st-${p.status.toLowerCase()}">${p.status}</span></span>
+    </div>`).join('');
+}
+
+function openModal(idx){
+  const rows = filterMode === 'threats' ? feedRows.filter(r=>r.status!=='CLEAN') : feedRows;
+  const p = rows[idx]; if(!p) return;
+  const score = p.status==='BLOCKED'?randInt(80,99):p.status==='SUSPECT'?randInt(40,70):randInt(1,20);
+  const scoreColor = score>75?'var(--red)':score>40?'var(--yellow)':'var(--green)';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="mi-section">
+      <div class="mi-section-title">Network Header</div>
+      <div class="mi-row"><span class="mi-key">Source IP</span><span class="mi-val">${p.src}</span></div>
+      <div class="mi-row"><span class="mi-key">Dest IP</span><span class="mi-val">${p.dst}</span></div>
+      <div class="mi-row"><span class="mi-key">Src Port</span><span class="mi-val">:${randInt(1024,65535)}</span></div>
+      <div class="mi-row"><span class="mi-key">Dst Port</span><span class="mi-val">:${p.port}</span></div>
+      <div class="mi-row"><span class="mi-key">Protocol</span><span class="mi-val">${p.proto}</span></div>
+      <div class="mi-row"><span class="mi-key">TTL</span><span class="mi-val">${randInt(50,128)}</span></div>
+      <div class="mi-row"><span class="mi-key">Flags</span><span class="mi-val">PSH ACK</span></div>
+    </div>
+    <div class="mi-section">
+      <div class="mi-section-title">DPI Analysis</div>
+      <div class="mi-row"><span class="mi-key">Status</span><span class="mi-val" style="color:${p.status==='CLEAN'?'var(--green)':p.status==='SUSPECT'?'var(--yellow)':'var(--red)'}">${p.status}</span></div>
+      <div class="mi-row"><span class="mi-key">Packet Size</span><span class="mi-val">${p.size}</span></div>
+      <div class="mi-row"><span class="mi-key">Timestamp</span><span class="mi-val">${p.time}</span></div>
+      <div class="mi-row"><span class="mi-key">Flow ID</span><span class="mi-val">FL-${randInt(10000,99999)}</span></div>
+      <div class="mi-row"><span class="mi-key">Session</span><span class="mi-val">${randInt(1,500)} packets</span></div>
+      <div class="mi-row"><span class="mi-key">Geo (src)</span><span class="mi-val">${randEl(['US','RU','CN','DE','BR','KR','IR'])}</span></div>
+      <div style="margin-top:8px">
+        <div class="mi-key">Threat Score: <span style="color:${scoreColor}">${score}/100</span></div>
+        <div class="threat-score-bar"><div class="ts-fill" style="width:${score}%;background:${scoreColor}"></div></div>
+      </div>
+    </div>
+    <div class="mi-section payload-box">
+      <div class="mi-section-title">Payload Inspection</div>
+      ${p.raw}
+    </div>
+    <div class="mi-section">
+      <div class="mi-section-title">Recommended Action</div>
+      <div class="mi-row"><span class="mi-key">Action</span><span class="mi-val">${p.status==='BLOCKED'?'🚫 Block & Alert':p.status==='SUSPECT'?'⚠ Monitor & Log':'✅ Allow'}</span></div>
+      <div class="mi-row"><span class="mi-key">MITRE</span><span class="mi-val">${p.proto==='DNS'?'T1071.004':p.proto==='SMTP'?'T1048':p.proto==='SSH'?'T1021.004':'T1190'}</span></div>
+      <div class="mi-row"><span class="mi-key">Sig Match</span><span class="mi-val">${p.status!=='CLEAN'?'ET-'+randInt(1000,9999):'-'}</span></div>
+      <div class="mi-row"><span class="mi-key">Confidence</span><span class="mi-val">${randInt(70,99)}%</span></div>
+    </div>`;
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeModal(); });
+
+// ALERTS
+const alertsShown = [];
+function addAlert(){
+  const sev = randEl(['crit','crit','high','high','med','low']);
+  const name = randEl(THREAT_NAMES);
+  const a = document.createElement('div');
+  a.className = `alert-item ${sev} new-alert`;
+  a.innerHTML = `
+    <div class="alert-top">
+      <div class="alert-name">${name}</div>
+      <span class="alert-badge ab-${sev}">${sev.toUpperCase()}</span>
+    </div>
+    <div class="alert-src">${randIP()} → ${randIP()}</div>
+    <div class="alert-time">${now()} · ${randEl(PROTOS)} · Port ${randEl(PORTS)}</div>`;
+  const container = document.getElementById('alerts-container');
+  container.insertBefore(a, container.firstChild);
+  if(container.children.length > 20) container.lastChild.remove();
+}
+
+// MAIN LOOP
+let loopCount = 0;
+setInterval(()=>{
+  loopCount++;
+  // Update metrics
+  document.getElementById('pps').textContent = (2400000+randInt(-50000,100000)).toLocaleString();
+  document.getElementById('flows').textContent = (14000+randInt(-300,500)).toLocaleString();
+  document.getElementById('blocked').textContent = (847+Math.floor(loopCount*0.3)).toLocaleString();
+  document.getElementById('latency').textContent = randFloat(0.8,2.1)+'ms';
+
+  // Update charts
+  trafficData.push(randInt(150,500)); trafficData.shift();
+  threatData.push(randInt(0,10)); threatData.shift();
+  trafficChart.data.datasets[0].data = [...trafficData];
+  trafficChart.data.datasets[1].data = trafficData.map(v=>v*0.6);
+  threatChart.data.datasets[0].data = [...threatData];
+  threatChart.data.datasets[0].backgroundColor = threatData.map(v=>v>6?'rgba(255,51,102,0.8)':v>3?'rgba(255,204,0,0.7)':'rgba(0,102,255,0.6)');
+  trafficChart.update('none'); threatChart.update();
+
+  // Add packets
+  if(!paused){
+    const count = randInt(1,4);
+    for(let i=0;i<count;i++){
+      const pkt = genPacket();
+      feedRows.push(pkt);
+      pktCount++;
+      if(feedRows.length > MAX_ROWS) feedRows.shift();
+    }
+    document.getElementById('pkt-count').textContent = pktCount.toLocaleString();
+    renderFeed();
+  }
+
+  // Random alerts
+  if(Math.random() < 0.3) addAlert();
+}, 800);
+
+// Seed initial alerts
+for(let i=0;i<5;i++) setTimeout(addAlert, i*300);
+</script>
+</body>
+</html>
