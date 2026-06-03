@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepTrace — Secure Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#020810;--bg2:#050d1a;--bg3:#08111f;
+  --surface:rgba(0,200,255,0.04);--border:rgba(0,200,255,0.13);
+  --cyan:#00d4ff;--cyan2:#00ffcc;--blue:#0066ff;
+  --red:#ff3366;--yellow:#ffcc00;--green:#00ff88;
+  --text:#c8e8ff;--muted:#4a6a88;
+  --glow:0 0 24px rgba(0,212,255,0.35);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;position:relative}
+
+/* CANVAS BG */
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* GRID OVERLAY */
+.grid-overlay{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:linear-gradient(rgba(0,212,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.04) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+
+/* CENTER WRAP */
+.center{position:relative;z-index:10;width:100%;max-width:440px;padding:20px}
+
+/* LOGO */
+.logo-block{text-align:center;margin-bottom:32px}
+.logo-icon{
+  width:56px;height:56px;border:1px solid var(--cyan);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 12px;background:rgba(0,212,255,0.06);
+  font-size:1.5rem;animation:pulse-border 3s ease infinite;
+}
+.logo-name{font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:900;color:#fff;letter-spacing:3px}
+.logo-name span{color:var(--cyan);text-shadow:var(--glow)}
+.logo-sub{font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-top:4px}
+
+/* CARD */
+.card{
+  background:rgba(5,13,26,0.92);
+  border:1px solid var(--border);
+  backdrop-filter:blur(20px);
+  padding:36px;
+  position:relative;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),var(--cyan2),transparent);
+}
+.card::after{
+  content:'';position:absolute;top:0;left:0;
+  width:100%;height:100%;
+  background:radial-gradient(ellipse at top center,rgba(0,102,255,0.06),transparent 60%);
+  pointer-events:none;
+}
+
+/* VIEWS */
+.view{display:none;animation:fadeUp 0.35s ease both}
+.view.active{display:block}
+
+/* FORM */
+.form-title{
+  font-family:'Orbitron',monospace;font-size:1rem;letter-spacing:2px;
+  color:#fff;margin-bottom:6px;
+}
+.form-sub{font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--muted);letter-spacing:1px;margin-bottom:28px}
+.field{margin-bottom:16px;position:relative}
+.field-label{
+  display:block;font-family:'Share Tech Mono',monospace;
+  font-size:0.62rem;color:var(--muted);text-transform:uppercase;
+  letter-spacing:2px;margin-bottom:6px;
+}
+.field-wrap{position:relative}
+.field-icon{
+  position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  font-size:0.9rem;pointer-events:none;z-index:1;
+}
+.field input{
+  width:100%;background:rgba(0,0,0,0.5);
+  border:1px solid var(--border);color:var(--text);
+  padding:11px 14px 11px 38px;
+  font-family:'Share Tech Mono',monospace;font-size:0.8rem;
+  transition:all 0.2s;letter-spacing:1px;
+}
+.field input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,212,255,0.1)}
+.field input.error{border-color:var(--red)}
+.field input.ok{border-color:var(--green)}
+.field-err{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--red);margin-top:5px;display:none}
+.field-err.show{display:block}
+.eye-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;transition:color 0.2s}
+.eye-btn:hover{color:var(--cyan)}
+
+/* PASSWORD STRENGTH */
+.strength-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px}
+.sb-seg{height:3px;background:rgba(255,255,255,0.08);border-radius:2px;transition:background 0.3s}
+
+/* CHECKBOX */
+.check-row{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.check-row input[type=checkbox]{
+  width:16px;height:16px;background:rgba(0,0,0,0.5);
+  border:1px solid var(--border);accent-color:var(--cyan);cursor:pointer;
+}
+.check-row label{font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--muted);cursor:pointer}
+.check-row label a{color:var(--cyan);text-decoration:none}
+.check-row label a:hover{text-decoration:underline}
+
+/* BUTTONS */
+.btn-primary{
+  width:100%;padding:13px;
+  background:linear-gradient(135deg,var(--cyan),var(--blue));
+  border:none;color:#000;
+  font-family:'Orbitron',monospace;font-size:0.8rem;font-weight:700;
+  letter-spacing:3px;cursor:pointer;text-transform:uppercase;
+  transition:all 0.3s;clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  position:relative;overflow:hidden;
+}
+.btn-primary::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:background 0.2s}
+.btn-primary:hover::after{background:rgba(255,255,255,0.1)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,102,255,0.4)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-ghost{
+  width:100%;padding:11px;background:transparent;
+  border:1px solid var(--border);color:var(--muted);
+  font-family:'Share Tech Mono',monospace;font-size:0.75rem;
+  letter-spacing:2px;cursor:pointer;text-transform:uppercase;
+  transition:all 0.2s;margin-top:10px;
+}
+.btn-ghost:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* DIVIDER */
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.divider span{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:2px}
+
+/* SSO BUTTONS */
+.sso-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sso-btn{
+  padding:9px;background:var(--surface);border:1px solid var(--border);
+  color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.65rem;
+  cursor:pointer;text-transform:uppercase;letter-spacing:1px;
+  transition:all 0.2s;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.sso-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* MFA */
+.mfa-dots{display:flex;gap:10px;justify-content:center;margin:20px 0}
+.otp-inputs{display:flex;gap:8px;justify-content:center;margin:20px 0}
+.otp-input{
+  width:44px;height:52px;background:rgba(0,0,0,0.5);
+  border:1px solid var(--border);color:var(--cyan);
+  font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700;
+  text-align:center;letter-spacing:0;transition:all 0.2s;
+}
+.otp-input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,212,255,0.15)}
+.otp-input.filled{border-color:var(--cyan2);color:var(--cyan2)}
+.mfa-timer{text-align:center;font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--muted);margin-bottom:6px}
+.mfa-timer span{color:var(--cyan)}
+
+/* ALERT BOXES */
+.alert{padding:10px 14px;font-family:'Share Tech Mono',monospace;font-size:0.7rem;margin-bottom:16px;border-left:3px solid;display:none;line-height:1.6}
+.alert.show{display:block}
+.alert-err{background:rgba(255,51,102,0.08);border-color:var(--red);color:var(--red)}
+.alert-ok{background:rgba(0,255,136,0.08);border-color:var(--green);color:var(--green)}
+.alert-warn{background:rgba(255,204,0,0.08);border-color:var(--yellow);color:var(--yellow)}
+
+/* LINKS */
+.link-row{text-align:center;margin-top:20px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--muted)}
+.link-row a,.link{color:var(--cyan);text-decoration:none;cursor:pointer}
+.link-row a:hover,.link:hover{text-decoration:underline}
+
+/* SECURITY BADGE */
+.sec-badges{display:flex;justify-content:center;gap:16px;margin-top:20px}
+.sec-badge{font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);display:flex;align-items:center;gap:4px}
+
+/* LOADING SPINNER */
+.btn-loading{display:inline-flex;align-items:center;gap:8px}
+.spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin 0.6s linear infinite;flex-shrink:0}
+
+/* PROGRESS STEPS */
+.steps{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:28px}
+.step{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:1px}
+.step-num{width:22px;height:22px;border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65rem;transition:all 0.3s}
+.step.active .step-num{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,0.1)}
+.step.done .step-num{border-color:var(--green);color:var(--green);background:rgba(0,255,136,0.1)}
+.step-line{width:40px;height:1px;background:var(--border);margin:0 4px}
+
+/* SCAN LINE ANIMATION */
+.scan-line{
+  position:fixed;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  animation:scanDown 4s linear infinite;opacity:0.4;z-index:0;pointer-events:none;
+}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse-border{0%,100%{box-shadow:0 0 8px rgba(0,212,255,0.3)}50%{box-shadow:0 0 20px rgba(0,212,255,0.6)}}
+@keyframes scanDown{from{top:0}to{top:100%}}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="grid-overlay"></div>
+<div class="scan-line"></div>
+
+<div class="center">
+  <div class="logo-block">
+    <div class="logo-icon">🛡️</div>
+    <div class="logo-name">Deep<span>Trace</span></div>
+    <div class="logo-sub">Security Operations Platform</div>
+  </div>
+
+  <div class="card">
+
+    <!-- ===== LOGIN VIEW ===== -->
+    <div class="view active" id="v-login">
+      <div class="form-title">OPERATOR LOGIN</div>
+      <div class="form-sub">AUTHENTICATE TO ACCESS SOC SYSTEMS</div>
+
+      <div class="alert alert-err" id="login-err"></div>
+      <div class="alert alert-warn" id="login-warn">⚠ 2 failed attempts. Account locks after 5.</div>
+
+      <div class="field">
+        <label class="field-label">Email / Username</label>
+        <div class="field-wrap">
+          <span class="field-icon">👤</span>
+          <input type="text" id="login-email" placeholder="operator@deeptrace.io" value="admin@deeptrace.io">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Password</label>
+        <div class="field-wrap">
+          <span class="field-icon">🔑</span>
+          <input type="password" id="login-pass" placeholder="••••••••••••" value="Admin@1234">
+          <button class="eye-btn" onclick="toggleEye('login-pass',this)">👁</button>
+        </div>
+      </div>
+
+      <div class="check-row">
+        <input type="checkbox" id="remember" checked>
+        <label for="remember">Remember this device for 30 days</label>
+      </div>
+
+      <button class="btn-primary" id="login-btn" onclick="doLogin()">ACCESS SYSTEM</button>
+
+      <div style="text-align:right;margin-top:12px">
+        <span class="link" onclick="show('v-forgot')" style="font-family:'Share Tech Mono',monospace;font-size:0.68rem">Forgot password?</span>
+      </div>
+
+      <div class="divider"><span>OR SIGN IN WITH</span></div>
+      <div class="sso-row">
+        <button class="sso-btn" onclick="doSSO('Microsoft')">🪟 Microsoft SSO</button>
+        <button class="sso-btn" onclick="doSSO('Okta')">🔵 Okta SSO</button>
+      </div>
+
+      <div class="link-row" style="margin-top:20px">
+        No account? <a onclick="show('v-register')">Request Access</a>
+      </div>
+
+      <div class="sec-badges">
+        <div class="sec-badge">🔒 TLS 1.3</div>
+        <div class="sec-badge">🛡 SOC 2</div>
+        <div class="sec-badge">✅ MFA Ready</div>
+      </div>
+    </div>
+
+    <!-- ===== MFA VIEW ===== -->
+    <div class="view" id="v-mfa">
+      <div class="steps">
+        <div class="step done"><div class="step-num">✓</div><span>Credentials</span></div>
+        <div class="step-line"></div>
+        <div class="step active"><div class="step-num">2</div><span>2FA Verify</span></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-num">3</div><span>Access</span></div>
+      </div>
+      <div class="form-title">TWO-FACTOR AUTH</div>
+      <div class="form-sub" id="mfa-sub">ENTER 6-DIGIT CODE FROM YOUR AUTHENTICATOR APP</div>
+
+      <div class="alert alert-err" id="mfa-err"></div>
+      <div class="mfa-timer">Code expires in <span id="mfa-countdown">120</span>s</div>
+
+      <div class="otp-inputs" id="otp-inputs">
+        <input class="otp-input" maxlength="1" id="otp0" oninput="otpNext(this,0)" onkeydown="otpBack(event,0)">
+        <input class="otp-input" maxlength="1" id="otp1" oninput="otpNext(this,1)" onkeydown="otpBack(event,1)">
+        <input class="otp-input" maxlength="1" id="otp2" oninput="otpNext(this,2)" onkeydown="otpBack(event,2)">
+        <input class="otp-input" maxlength="1" id="otp3" oninput="otpNext(this,3)" onkeydown="otpBack(event,3)">
+        <input class="otp-input" maxlength="1" id="otp4" oninput="otpNext(this,4)" onkeydown="otpBack(event,4)">
+        <input class="otp-input" maxlength="1" id="otp5" oninput="otpNext(this,5)" onkeydown="otpBack(event,5)">
+      </div>
+
+      <button class="btn-primary" id="mfa-btn" onclick="doMFA()">VERIFY CODE</button>
+      <div style="text-align:center;margin-top:10px">
+        <span class="link" onclick="resendMFA()" style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--muted)">Resend code via email</span>
+        &nbsp;·&nbsp;
+        <span class="link" onclick="show('v-login')" style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--muted)">Back</span>
+      </div>
+
+      <div style="text-align:center;margin-top:16px;font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted)">
+        💡 Demo: Enter any 6 digits to proceed
+      </div>
+    </div>
+
+    <!-- ===== REGISTER VIEW ===== -->
+    <div class="view" id="v-register">
+      <div class="form-title">REQUEST ACCESS</div>
+      <div class="form-sub">NEW OPERATOR REGISTRATION — PENDING ADMIN APPROVAL</div>
+
+      <div class="alert alert-err" id="reg-err"></div>
+      <div class="alert alert-ok" id="reg-ok"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="field">
+          <label class="field-label">First Name</label>
+          <div class="field-wrap">
+            <span class="field-icon">👤</span>
+            <input type="text" id="reg-fname" placeholder="John">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">Last Name</label>
+          <div class="field-wrap">
+            <span class="field-icon">👤</span>
+            <input type="text" id="reg-lname" placeholder="Smith">
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Work Email</label>
+        <div class="field-wrap">
+          <span class="field-icon">📧</span>
+          <input type="email" id="reg-email" placeholder="john@company.com">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Organization</label>
+        <div class="field-wrap">
+          <span class="field-icon">🏢</span>
+          <input type="text" id="reg-org" placeholder="Acme Corporation">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Requested Role</label>
+        <div class="field-wrap" style="position:relative">
+          <span class="field-icon">🎯</span>
+          <select id="reg-role" style="width:100%;background:rgba(0,0,0,0.5);border:1px solid var(--border);color:var(--text);padding:11px 14px 11px 38px;font-family:'Share Tech Mono',monospace;font-size:0.8rem;appearance:none;cursor:pointer">
+            <option value="analyst">SOC Analyst</option>
+            <option value="senior">Senior Analyst</option>
+            <option value="engineer">Security Engineer</option>
+            <option value="manager">SOC Manager</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Password</label>
+        <div class="field-wrap">
+          <span class="field-icon">🔒</span>
+          <input type="password" id="reg-pass" placeholder="Create strong password" oninput="checkStrength(this.value)">
+          <button class="eye-btn" onclick="toggleEye('reg-pass',this)">👁</button>
+        </div>
+        <div class="strength-bar" id="strength-bar">
+          <div class="sb-seg" id="s1"></div><div class="sb-seg" id="s2"></div>
+          <div class="sb-seg" id="s3"></div><div class="sb-seg" id="s4"></div>
+        </div>
+        <div id="strength-label" style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);margin-top:4px"></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Confirm Password</label>
+        <div class="field-wrap">
+          <span class="field-icon">🔒</span>
+          <input type="password" id="reg-pass2" placeholder="Confirm password">
+        </div>
+        <div class="field-err" id="pass-match-err">Passwords do not match</div>
+      </div>
+
+      <div class="check-row">
+        <input type="checkbox" id="agree">
+        <label for="agree">I agree to the <a href="#">Terms of Service</a> and <a href="#">Security Policy</a></label>
+      </div>
+
+      <button class="btn-primary" onclick="doRegister()">SUBMIT REQUEST</button>
+      <div class="link-row">Already have an account? <a onclick="show('v-login')">Sign In</a></div>
+    </div>
+
+    <!-- ===== FORGOT PASSWORD ===== -->
+    <div class="view" id="v-forgot">
+      <div class="form-title">RESET PASSWORD</div>
+      <div class="form-sub">ENTER YOUR EMAIL TO RECEIVE A RESET LINK</div>
+
+      <div class="alert alert-ok" id="forgot-ok"></div>
+      <div class="alert alert-err" id="forgot-err"></div>
+
+      <div class="field">
+        <label class="field-label">Work Email</label>
+        <div class="field-wrap">
+          <span class="field-icon">📧</span>
+          <input type="email" id="forgot-email" placeholder="your@company.com" value="">
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="doForgot()">SEND RESET LINK</button>
+      <button class="btn-ghost" onclick="show('v-login')">← BACK TO LOGIN</button>
+    </div>
+
+    <!-- ===== SUCCESS / REDIRECT ===== -->
+    <div class="view" id="v-success">
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:3rem;margin-bottom:16px;animation:fadeUp 0.5s ease">✅</div>
+        <div class="form-title" style="color:var(--green);margin-bottom:8px">ACCESS GRANTED</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--muted);margin-bottom:24px;line-height:1.8">
+          Welcome back, <span id="welcome-name" style="color:var(--cyan)">Operator</span><br>
+          Session secured with TLS 1.3 + AES-256
+        </div>
+        <div style="background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);padding:14px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--muted);text-align:left;margin-bottom:24px;line-height:2">
+          <div style="color:var(--green);margin-bottom:6px">// SESSION INFO</div>
+          <div>IP: <span style="color:var(--text)">192.168.1.44</span></div>
+          <div>Device: <span style="color:var(--text)" id="device-info">Chrome / Windows</span></div>
+          <div>Last login: <span style="color:var(--text)" id="last-login">Never</span></div>
+          <div>MFA: <span style="color:var(--green)">Verified ✓</span></div>
+        </div>
+        <div id="redirect-bar" style="background:rgba(0,212,255,0.08);border:1px solid var(--border);height:4px;border-radius:2px;overflow:hidden;margin-bottom:12px">
+          <div id="redirect-fill" style="height:4px;background:linear-gradient(90deg,var(--cyan),var(--cyan2));width:0%;transition:width 3s linear"></div>
+        </div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted)">Redirecting to dashboard in <span id="redir-count" style="color:var(--cyan)">3</span>s...</div>
+        <button class="btn-primary" style="margin-top:16px" onclick="goToDashboard()">ENTER DASHBOARD NOW →</button>
+      </div>
+    </div>
+
+  </div><!-- .card -->
+</div><!-- .center -->
+
+<script>
+// CANVAS BACKGROUND
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+window.addEventListener('resize',()=>{canvas.width=window.innerWidth;canvas.height=window.innerHeight;});
+
+const nodes = Array.from({length:40},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3}));
+function drawBG(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  nodes.forEach(n=>{
+    n.x+=n.vx;n.y+=n.vy;
+    if(n.x<0||n.x>canvas.width)n.vx*=-1;
+    if(n.y<0||n.y>canvas.height)n.vy*=-1;
+  });
+  nodes.forEach((a,i)=>nodes.forEach((b,j)=>{
+    if(i>=j)return;
+    const d=Math.hypot(a.x-b.x,a.y-b.y);
+    if(d<140){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`rgba(0,212,255,${0.1*(1-d/140)})`;ctx.lineWidth=0.5;ctx.stroke();}
+  }));
+  nodes.forEach(n=>{ctx.beginPath();ctx.arc(n.x,n.y,1.5,0,Math.PI*2);ctx.fillStyle='rgba(0,212,255,0.4)';ctx.fill();});
+  requestAnimationFrame(drawBG);
+}
+drawBG();
+
+// VIEWS
+function show(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// TOGGLE PASSWORD
+function toggleEye(inputId,btn){
+  const inp=document.getElementById(inputId);
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈';}
+  else{inp.type='password';btn.textContent='👁';}
+}
+
+// PASSWORD STRENGTH
+function checkStrength(val){
+  const segs=[document.getElementById('s1'),document.getElementById('s2'),document.getElementById('s3'),document.getElementById('s4')];
+  const label=document.getElementById('strength-label');
+  const colors=['var(--red)','var(--orange)','var(--yellow)','var(--green)'];
+  const labels=['Weak','Fair','Good','Strong'];
+  segs.forEach(s=>s.style.background='rgba(255,255,255,0.08)');
+  let score=0;
+  if(val.length>=8)score++;
+  if(/[A-Z]/.test(val)&&/[0-9]/.test(val))score++;
+  if(/[^A-Za-z0-9]/.test(val))score++;
+  if(val.length>=14)score++;
+  for(let i=0;i<score;i++)segs[i].style.background=colors[score-1];
+  label.textContent=score>0?labels[score-1]:'';
+  label.style.color=score>0?colors[score-1]:'';
+}
+
+// MFA OTP
+function otpNext(el,idx){
+  el.classList.toggle('filled',el.value!=='');
+  const code=Array.from({length:6},(_,i)=>document.getElementById('otp'+i).value).join('');
+  if(el.value&&idx<5)document.getElementById('otp'+(idx+1)).focus();
+  if(code.length===6)document.getElementById('mfa-btn').focus();
+}
+function otpBack(e,idx){if(e.key==='Backspace'&&!document.getElementById('otp'+idx).value&&idx>0)document.getElementById('otp'+(idx-1)).focus();}
+function getOTP(){return Array.from({length:6},(_,i)=>document.getElementById('otp'+i).value).join('');}
+
+// MFA COUNTDOWN
+let mfaTimer;
+function startMFATimer(){
+  let t=120;
+  clearInterval(mfaTimer);
+  mfaTimer=setInterval(()=>{
+    t--;document.getElementById('mfa-countdown').textContent=t;
+    if(t<=0){clearInterval(mfaTimer);document.getElementById('mfa-err').textContent='Code expired. Request a new one.';document.getElementById('mfa-err').classList.add('show');}
+  },1000);
+}
+
+function resendMFA(){
+  clearInterval(mfaTimer);
+  document.getElementById('mfa-countdown').textContent='120';
+  startMFATimer();
+  const el=document.createElement('div');
+}
+
+// LOADING STATE
+function setLoading(btnId,loading,text=''){
+  const btn=document.getElementById(btnId);
+  if(loading){btn.disabled=true;btn.innerHTML=`<span class="btn-loading"><span class="spinner"></span>AUTHENTICATING...</span>`;}
+  else{btn.disabled=false;btn.textContent=text||btn.dataset.orig||'SUBMIT';}
+}
+
+// LOGIN
+function doLogin(){
+  const email=document.getElementById('login-email').value;
+  const pass=document.getElementById('login-pass').value;
+  const errEl=document.getElementById('login-err');
+  errEl.classList.remove('show');
+  if(!email||!pass){errEl.textContent='⚠ Email and password are required.';errEl.classList.add('show');return;}
+  setLoading('login-btn',true);
+  setTimeout(()=>{
+    setLoading('login-btn',false);
+    document.getElementById('login-btn').textContent='ACCESS SYSTEM';
+    document.getElementById('mfa-sub').textContent=`CODE SENT TO ${email.replace(/(.{2}).+(@.+)/,'$1****$2').toUpperCase()}`;
+    startMFATimer();
+    show('v-mfa');
+    setTimeout(()=>document.getElementById('otp0').focus(),300);
+  },1400);
+}
+
+// MFA
+function doMFA(){
+  const code=getOTP();
+  const errEl=document.getElementById('mfa-err');
+  errEl.classList.remove('show');
+  if(code.length<6){errEl.textContent='⚠ Enter all 6 digits.';errEl.classList.add('show');return;}
+  document.getElementById('mfa-btn').disabled=true;
+  document.getElementById('mfa-btn').innerHTML='<span class="btn-loading"><span class="spinner"></span>VERIFYING...</span>';
+  setTimeout(()=>{
+    clearInterval(mfaTimer);
+    const name=document.getElementById('login-email').value.split('@')[0];
+    document.getElementById('welcome-name').textContent=name.charAt(0).toUpperCase()+name.slice(1);
+    document.getElementById('device-info').textContent=navigator.userAgent.includes('Chrome')?'Chrome / '+navigator.platform:'Browser / Desktop';
+    document.getElementById('last-login').textContent=new Date(Date.now()-86400000*2).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    show('v-success');
+    setTimeout(()=>{document.getElementById('redirect-fill').style.width='100%';},100);
+    let r=3;
+    const ri=setInterval(()=>{r--;document.getElementById('redir-count').textContent=r;if(r<=0){clearInterval(ri);goToDashboard();}},1000);
+  },1200);
+}
+
+// REGISTER
+function doRegister(){
+  const fname=document.getElementById('reg-fname').value;
+  const email=document.getElementById('reg-email').value;
+  const pass=document.getElementById('reg-pass').value;
+  const pass2=document.getElementById('reg-pass2').value;
+  const agree=document.getElementById('agree').checked;
+  const errEl=document.getElementById('reg-err');
+  const okEl=document.getElementById('reg-ok');
+  errEl.classList.remove('show');okEl.classList.remove('show');
+  if(!fname||!email||!pass){errEl.textContent='⚠ Please fill all required fields.';errEl.classList.add('show');return;}
+  if(pass!==pass2){document.getElementById('pass-match-err').classList.add('show');return;}
+  document.getElementById('pass-match-err').classList.remove('show');
+  if(!agree){errEl.textContent='⚠ You must agree to the terms.';errEl.classList.add('show');return;}
+  okEl.textContent='✅ Request submitted! An administrator will review and activate your account within 24 hours. Check your email for confirmation.';
+  okEl.classList.add('show');
+  setTimeout(()=>show('v-login'),3500);
+}
+
+// FORGOT
+function doForgot(){
+  const email=document.getElementById('forgot-email').value;
+  const errEl=document.getElementById('forgot-err');
+  const okEl=document.getElementById('forgot-ok');
+  errEl.classList.remove('show');okEl.classList.remove('show');
+  if(!email||!email.includes('@')){errEl.textContent='⚠ Enter a valid email address.';errEl.classList.add('show');return;}
+  document.querySelector('#v-forgot .btn-primary').disabled=true;
+  setTimeout(()=>{
+    okEl.textContent=`✅ Password reset link sent to ${email}. Check your inbox. Link expires in 30 minutes.`;
+    okEl.classList.add('show');
+    document.querySelector('#v-forgot .btn-primary').disabled=false;
+  },1000);
+}
+
+// SSO
+function doSSO(provider){
+  const btn=document.getElementById('login-btn');
+  alert(`🔵 ${provider} SSO flow would redirect to your identity provider.\n\nIn production this opens the OAuth 2.0 PKCE flow.`);
+}
+
+// GOTO DASHBOARD
+function goToDashboard(){
+  window.location.href='user-management.html';
+}
+
+// ENTER KEY
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    const active=document.querySelector('.view.active').id;
+    if(active==='v-login')doLogin();
+    else if(active==='v-mfa')doMFA();
+    else if(active==='v-forgot')doForgot();
+  }
+});
+</script>
+</body>
+</html>

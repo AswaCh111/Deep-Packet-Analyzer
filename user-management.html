@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepTrace — User Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#020810;--bg2:#050d1a;--bg3:#06101c;
+  --surface:rgba(0,200,255,0.04);--border:rgba(0,200,255,0.12);
+  --cyan:#00d4ff;--cyan2:#00ffcc;--blue:#0066ff;
+  --red:#ff3366;--orange:#ff6600;--yellow:#ffcc00;--green:#00ff88;
+  --purple:#aa55ff;--text:#c8e8ff;--muted:#4a6a88;
+  --glow:0 0 20px rgba(0,212,255,0.35);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* TOP NAV */
+.topbar{
+  height:48px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;flex-shrink:0;
+}
+.logo-sm{font-family:'Orbitron',monospace;font-size:1rem;font-weight:900;color:var(--cyan);letter-spacing:2px}
+.logo-sm span{color:#fff}
+.topbar-center{display:flex;gap:4px}
+.tab-btn{padding:6px 16px;background:transparent;border:1px solid transparent;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.72rem;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;text-decoration:none;display:inline-block}
+.tab-btn:hover,.tab-btn.active{color:var(--cyan);border-color:var(--border);background:var(--surface)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.user-pill{
+  display:flex;align-items:center;gap:8px;padding:5px 12px;
+  background:var(--surface);border:1px solid var(--border);cursor:pointer;
+  font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--text);transition:all 0.2s;
+}
+.user-pill:hover{border-color:var(--cyan)}
+.user-avatar{width:24px;height:24px;background:linear-gradient(135deg,var(--cyan),var(--blue));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#000;font-weight:bold}
+.notif-btn{
+  position:relative;width:32px;height:32px;background:var(--surface);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.9rem;transition:all 0.2s;
+}
+.notif-btn:hover{border-color:var(--cyan)}
+.notif-badge{
+  position:absolute;top:-4px;right:-4px;width:16px;height:16px;
+  background:var(--red);border-radius:50%;font-family:'Share Tech Mono',monospace;
+  font-size:0.55rem;color:#fff;display:flex;align-items:center;justify-content:center;
+}
+
+/* MAIN LAYOUT */
+.main-layout{display:grid;grid-template-columns:200px 1fr;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);padding:12px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.sb-label{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;padding:10px 8px 6px;margin-top:4px}
+.sb-link{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;
+  font-family:'Share Tech Mono',monospace;font-size:0.68rem;color:var(--muted);
+  cursor:pointer;transition:all 0.15s;border-left:2px solid transparent;
+  border-radius:0;
+}
+.sb-link:hover,.sb-link.active{color:var(--cyan);border-left-color:var(--cyan);background:var(--surface)}
+.sb-icon{font-size:0.9rem;flex-shrink:0}
+.sb-badge{margin-left:auto;background:var(--red);color:#fff;padding:1px 5px;font-size:0.58rem;border-radius:8px}
+.sb-badge-yellow{background:var(--yellow);color:#000}
+.sb-badge-cyan{background:rgba(0,212,255,0.2);color:var(--cyan);border:1px solid rgba(0,212,255,0.3)}
+
+/* CONTENT AREA */
+.content{overflow-y:auto;display:flex;flex-direction:column}
+
+/* CONTENT SECTIONS */
+.content-section{display:none;flex:1;flex-direction:column}
+.content-section.active{display:flex}
+
+/* SECTION HEADER */
+.section-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;
+  background:var(--bg2);
+}
+.section-hdr-left{display:flex;flex-direction:column;gap:2px}
+.section-hdr-title{font-family:'Orbitron',monospace;font-size:1rem;color:#fff;letter-spacing:1px}
+.section-hdr-sub{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:1px}
+.section-hdr-actions{display:flex;gap:8px;align-items:center}
+
+/* SEARCH & FILTER */
+.search-bar{
+  display:flex;gap:8px;padding:12px 20px;
+  border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg3);
+}
+.search-input{
+  flex:1;background:rgba(0,0,0,0.5);border:1px solid var(--border);
+  color:var(--text);padding:8px 14px;font-family:'Share Tech Mono',monospace;
+  font-size:0.72rem;transition:border-color 0.2s;
+}
+.search-input:focus{outline:none;border-color:var(--cyan)}
+.filter-select{
+  background:rgba(0,0,0,0.5);border:1px solid var(--border);
+  color:var(--muted);padding:8px 12px;font-family:'Share Tech Mono',monospace;
+  font-size:0.68rem;cursor:pointer;
+}
+.filter-select:focus{outline:none;border-color:var(--cyan)}
+.filter-select option{background:var(--bg2)}
+
+/* BUTTONS */
+.btn{
+  padding:8px 16px;border:none;font-family:'Share Tech Mono',monospace;font-size:0.68rem;
+  letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;
+}
+.btn-sm{padding:5px 10px;font-size:0.6rem}
+.btn-cyan{background:rgba(0,212,255,0.15);color:var(--cyan);border:1px solid rgba(0,212,255,0.3)}
+.btn-cyan:hover{background:rgba(0,212,255,0.25)}
+.btn-green{background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.25)}
+.btn-green:hover{background:rgba(0,255,136,0.2)}
+.btn-red{background:rgba(255,51,102,0.1);color:var(--red);border:1px solid rgba(255,51,102,0.25)}
+.btn-red:hover{background:rgba(255,51,102,0.2)}
+.btn-yellow{background:rgba(255,204,0,0.1);color:var(--yellow);border:1px solid rgba(255,204,0,0.25)}
+.btn-yellow:hover{background:rgba(255,204,0,0.2)}
+.btn-primary-sm{background:linear-gradient(135deg,var(--cyan),var(--blue));color:#000;border:none;font-weight:700}
+.btn-primary-sm:hover{box-shadow:0 4px 16px rgba(0,102,255,0.4);transform:translateY(-1px)}
+
+/* USER TABLE */
+.user-table-wrap{flex:1;overflow-y:auto;padding:0 20px 16px}
+.user-table{width:100%;border-collapse:collapse;margin-top:12px}
+.user-table th{
+  font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1px;padding:8px;text-align:left;
+  border-bottom:1px solid var(--border);font-weight:normal;white-space:nowrap;
+  cursor:pointer;user-select:none;
+}
+.user-table th:hover{color:var(--cyan)}
+.user-table th.sorted{color:var(--cyan)}
+.user-table td{padding:10px 8px;border-bottom:1px solid rgba(0,200,255,0.05);vertical-align:middle}
+.user-row{cursor:pointer;transition:background 0.15s}
+.user-row:hover{background:rgba(0,212,255,0.04)}
+.user-row.selected{background:rgba(0,212,255,0.07);border-left:2px solid var(--cyan)}
+.ua-wrap{display:flex;align-items:center;gap:10px}
+.ua{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:0.7rem;font-weight:700;flex-shrink:0}
+.ua-name{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:0.9rem;color:#fff}
+.ua-email{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted)}
+
+/* ROLE BADGE */
+.role-badge{display:inline-block;padding:3px 8px;font-family:'Share Tech Mono',monospace;font-size:0.6rem;border-radius:2px;white-space:nowrap}
+.role-admin{background:rgba(255,51,102,0.15);color:var(--red);border:1px solid rgba(255,51,102,0.3)}
+.role-manager{background:rgba(255,102,0,0.12);color:var(--orange);border:1px solid rgba(255,102,0,0.3)}
+.role-senior{background:rgba(170,85,255,0.15);color:var(--purple);border:1px solid rgba(170,85,255,0.3)}
+.role-analyst{background:rgba(0,212,255,0.12);color:var(--cyan);border:1px solid rgba(0,212,255,0.3)}
+.role-viewer{background:rgba(128,128,128,0.12);color:#888;border:1px solid rgba(128,128,128,0.3)}
+.role-engineer{background:rgba(0,255,204,0.12);color:var(--cyan2);border:1px solid rgba(0,255,204,0.3)}
+
+/* STATUS DOT */
+.status-wrap{display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:0.65rem}
+.s-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.s-active{background:var(--green);box-shadow:0 0 6px var(--green)}
+.s-inactive{background:var(--muted)}
+.s-locked{background:var(--red);box-shadow:0 0 6px var(--red)}
+.s-pending{background:var(--yellow);box-shadow:0 0 6px var(--yellow);animation:pulse 1.5s ease infinite}
+
+/* ROW ACTIONS */
+.row-actions{display:flex;gap:4px;opacity:0;transition:opacity 0.15s}
+.user-row:hover .row-actions{opacity:1}
+
+/* METRICS ROW */
+.metrics-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:12px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.m-card{background:var(--bg2);border:1px solid var(--border);padding:10px;text-align:center}
+.m-val{font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700}
+.m-label{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+
+/* MODAL */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(2,8,16,0.88);
+  z-index:1000;display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity 0.2s;
+}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{
+  width:580px;max-width:95vw;background:var(--bg2);
+  border:1px solid var(--cyan);box-shadow:0 0 60px rgba(0,212,255,0.15);
+  max-height:88vh;overflow-y:auto;
+}
+.modal-hdr{
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+  background:rgba(0,212,255,0.04);
+}
+.modal-hdr-title{font-family:'Orbitron',monospace;font-size:0.9rem;color:var(--cyan);letter-spacing:1px}
+.modal-close{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:0.7rem;transition:all 0.2s}
+.modal-close:hover{border-color:var(--red);color:var(--red)}
+.modal-body{padding:24px}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.m-field{display:flex;flex-direction:column;gap:5px}
+.m-field.full{grid-column:1/-1}
+.m-label{font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.m-input,.m-select{
+  background:rgba(0,0,0,0.5);border:1px solid var(--border);
+  color:var(--text);padding:9px 12px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;transition:border-color 0.2s;
+}
+.m-input:focus,.m-select:focus{outline:none;border-color:var(--cyan)}
+.m-select option{background:var(--bg2)}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* PERMISSIONS */
+.perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.perm-item{display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface);border:1px solid var(--border)}
+.perm-item label{font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text);cursor:pointer}
+.perm-item input[type=checkbox]{accent-color:var(--cyan);cursor:pointer}
+
+/* AUDIT LOG */
+.audit-list{display:flex;flex-direction:column;gap:1px}
+.audit-row{
+  display:grid;grid-template-columns:140px 80px 160px 1fr;gap:8px;
+  padding:8px 20px;border-bottom:1px solid rgba(0,200,255,0.04);
+  font-family:'Share Tech Mono',monospace;font-size:0.63rem;align-items:center;
+  transition:background 0.15s;
+}
+.audit-row:hover{background:rgba(0,212,255,0.04)}
+.au-time{color:var(--muted)}
+.au-action{padding:2px 6px;border-radius:2px;font-size:0.58rem;text-align:center}
+.au-create{background:rgba(0,255,136,0.12);color:var(--green)}
+.au-update{background:rgba(0,212,255,0.12);color:var(--cyan)}
+.au-delete{background:rgba(255,51,102,0.12);color:var(--red)}
+.au-login{background:rgba(0,255,204,0.1);color:var(--cyan2)}
+.au-lock{background:rgba(255,204,0,0.12);color:var(--yellow)}
+.au-user{color:var(--text)}
+.au-detail{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* SESSION TABLE */
+.session-table{width:100%;border-collapse:collapse;font-family:'Share Tech Mono',monospace}
+.session-table th{font-size:0.6rem;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--border);font-weight:normal;text-transform:uppercase;letter-spacing:1px}
+.session-table td{padding:9px 8px;border-bottom:1px solid rgba(0,200,255,0.04);font-size:0.65rem;vertical-align:middle}
+.session-table tr:hover{background:rgba(0,212,255,0.04)}
+.sess-active{color:var(--green);display:flex;align-items:center;gap:5px}
+.sess-active::before{content:'';width:6px;height:6px;background:var(--green);border-radius:50%;box-shadow:0 0 6px var(--green)}
+
+/* TOAST */
+.toast{
+  position:fixed;top:60px;right:20px;z-index:2000;
+  padding:12px 18px;background:var(--bg2);border:1px solid var(--border);
+  font-family:'Share Tech Mono',monospace;font-size:0.72rem;
+  transform:translateX(120%);transition:transform 0.3s;
+  max-width:320px;line-height:1.6;
+}
+.toast.show{transform:translateX(0)}
+.toast.success{border-left:3px solid var(--green);color:var(--green)}
+.toast.error{border-left:3px solid var(--red);color:var(--red)}
+.toast.warn{border-left:3px solid var(--yellow);color:var(--yellow)}
+.toast.info{border-left:3px solid var(--cyan);color:var(--cyan)}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeUp 0.3s ease}
+
+/* SORT ARROW */
+.sort-arrow{font-size:0.55rem;margin-left:4px}
+
+/* SELECT ALL */
+.check-all{accent-color:var(--cyan)}
+
+/* CONFIRM MODAL */
+.confirm-modal{width:380px}
+.confirm-icon{font-size:2.5rem;text-align:center;margin-bottom:12px}
+.confirm-title{font-family:'Orbitron',monospace;font-size:0.9rem;color:#fff;text-align:center;margin-bottom:8px}
+.confirm-text{font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.7;margin-bottom:20px}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo-sm">Deep<span>Trace</span> <span style="font-size:0.6rem;color:var(--muted);margin-left:8px">ADMIN PORTAL</span></div>
+  <div class="topbar-center">
+    <a class="tab-btn" href="soc-dashboard.html">SOC Dashboard</a>
+    <a class="tab-btn" href="packet-analyzer.html">Packet Analyzer</a>
+    <a class="tab-btn" href="threat-intel.html">Threat Intel</a>
+    <a class="tab-btn" href="api-docs.html">API Docs</a>
+  </div>
+  <div class="topbar-right">
+    <div class="notif-btn" onclick="showToast('3 pending user approval requests','warn')">🔔<span class="notif-badge">3</span></div>
+    <div class="user-pill" onclick="showToast('Profile settings coming soon','info')">
+      <div class="user-avatar">A</div>
+      <span>admin</span>
+      <span style="color:var(--red);font-size:0.6rem">ADMIN</span>
+    </div>
+    <button class="btn btn-sm btn-red" onclick="window.location.href='login.html'">⏻ LOGOUT</button>
+  </div>
+</div>
+
+<div class="main-layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-label">User Management</div>
+    <div class="sb-link active" onclick="showSection('users',this)"><span class="sb-icon">👥</span>All Users <span class="sb-badge sb-badge-cyan">24</span></div>
+    <div class="sb-link" onclick="showSection('pending',this)"><span class="sb-icon">⏳</span>Pending Approval <span class="sb-badge">3</span></div>
+    <div class="sb-link" onclick="showSection('roles',this)"><span class="sb-icon">🎯</span>Roles & Permissions</div>
+    <div class="sb-link" onclick="showSection('sessions',this)"><span class="sb-icon">🔗</span>Active Sessions <span class="sb-badge sb-badge-cyan">8</span></div>
+
+    <div class="sb-label">Security</div>
+    <div class="sb-link" onclick="showSection('audit',this)"><span class="sb-icon">📋</span>Audit Log</div>
+    <div class="sb-link" onclick="showSection('mfa',this)"><span class="sb-icon">🔐</span>MFA Management</div>
+    <div class="sb-link" onclick="showSection('policy',this)"><span class="sb-icon">📜</span>Security Policy</div>
+
+    <div class="sb-label">Account</div>
+    <div class="sb-link" onclick="window.location.href='login.html'"><span class="sb-icon">⏻</span>Logout</div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- ====== ALL USERS ====== -->
+    <div class="content-section active" id="s-users">
+      <div class="section-hdr">
+        <div class="section-hdr-left">
+          <div class="section-hdr-title">User Management</div>
+          <div class="section-hdr-sub">MANAGE OPERATORS, ANALYSTS AND ADMIN ACCOUNTS</div>
+        </div>
+        <div class="section-hdr-actions">
+          <button class="btn btn-cyan" onclick="openModal('invite')">+ INVITE USER</button>
+          <button class="btn btn-primary-sm" onclick="openModal('create')">+ CREATE USER</button>
+        </div>
+      </div>
+      <div class="metrics-row">
+        <div class="m-card"><div class="m-val" style="color:var(--cyan)">24</div><div class="m-label">Total Users</div></div>
+        <div class="m-card"><div class="m-val" style="color:var(--green)">18</div><div class="m-label">Active</div></div>
+        <div class="m-card"><div class="m-val" style="color:var(--yellow)">3</div><div class="m-label">Pending</div></div>
+        <div class="m-card"><div class="m-val" style="color:var(--red)">2</div><div class="m-label">Locked</div></div>
+        <div class="m-card"><div class="m-val" style="color:var(--muted)">1</div><div class="m-label">Inactive</div></div>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" id="user-search" placeholder="🔍 Search by name, email, role..." oninput="filterUsers()">
+        <select class="filter-select" id="role-filter" onchange="filterUsers()">
+          <option value="">All Roles</option>
+          <option>Admin</option><option>SOC Manager</option><option>Senior Analyst</option>
+          <option>SOC Analyst</option><option>Security Engineer</option><option>Viewer</option>
+        </select>
+        <select class="filter-select" id="status-filter" onchange="filterUsers()">
+          <option value="">All Status</option>
+          <option>Active</option><option>Inactive</option><option>Locked</option><option>Pending</option>
+        </select>
+        <button class="btn btn-sm btn-red" onclick="bulkAction('delete')" style="white-space:nowrap">🗑 Bulk Delete</button>
+      </div>
+      <div class="user-table-wrap">
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" class="check-all" onchange="selectAll(this)"></th>
+              <th onclick="sortTable('name')" class="sorted">NAME <span class="sort-arrow">▼</span></th>
+              <th onclick="sortTable('role')">ROLE</th>
+              <th onclick="sortTable('status')">STATUS</th>
+              <th>MFA</th>
+              <th onclick="sortTable('last')">LAST LOGIN</th>
+              <th>ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="user-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ====== PENDING ====== -->
+    <div class="content-section" id="s-pending">
+      <div class="section-hdr">
+        <div class="section-hdr-left">
+          <div class="section-hdr-title">Pending Approvals</div>
+          <div class="section-hdr-sub">3 USERS AWAITING ACTIVATION</div>
+        </div>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex:1" id="pending-list"></div>
+    </div>
+
+    <!-- ====== ROLES ====== -->
+    <div class="content-section" id="s-roles">
+      <div class="section-hdr">
+        <div class="section-hdr-left">
+          <div class="section-hdr-title">Roles & Permissions</div>
+          <div class="section-hdr-sub">CONFIGURE ROLE-BASED ACCESS CONTROL</div>
+        </div>
+        <button class="btn btn-primary-sm" onclick="showToast('Custom roles feature in Enterprise plan','info')">+ NEW ROLE</button>
+      </div>
+      <div style="padding:20px;overflow-y:auto;flex:1" id="roles-container"></div>
+    </div>
+
+    <!-- ====== SESSIONS ====== -->
+    <div class="content-section" id="s-sessions">
+      <div class="section-hdr">
+        <div class="section-hdr-left">
+          <div class="section-hdr-title">Active Sessions</div>
+          <div class="section-hdr-sub">8 ACTIVE OPERATOR SESSIONS</div>
+        </div>
+        <button class="btn btn-red" onclick="confirmAction('Terminate ALL sessions?','This will log out all users immediately.',()=>showToast('All sessions terminated','success'))">⛔ KILL ALL SESSIONS</button>
+      </div>
+      <div style="padding:20px;overflow-y:auto;flex:1">
+        <table class="session-table">
+          <thead><tr><th>User</th><th>IP Address</th><th>Device</th><th>Location</th><th>Started</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="session-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ====== AUDIT LOG ====== -->
+    <div class="content-section" id="s-audit">
+      <div class="section-hdr">
+        <div class="section-hdr-left">
+          <div class="section-hdr-title">Audit Log</div>
+          <div class="section-hdr-sub">COMPLETE ACTIVITY TRAIL — ALL USER ACTIONS</div>
+        </div>
+        <button class="btn btn-cyan" onclick="showToast('Audit log exported as CSV','success')">⬇ EXPORT CSV</button>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" placeholder="🔍 Filter by user, action, detail...">
+        <select class="filter-select"><option>All Actions</option><option>Login</option><option>Create</option><option>Update</option><option>Delete</option><option>Lock</option></select>
+        <select class="filter-select"><option>Last 24h</option><option>Last 7 days</option><option>Last 30 days</option></select>
+      </div>
+      <div style="overflow-y:auto;flex:1">
+        <div class="audit-list" id="audit-list">
+          <div style="display:grid;grid-template-columns:140px 80px 160px 1fr;gap:8px;padding:8px 20px;font-family:'Share Tech Mono',monospace;font-size:0.58px;color:var(--muted);border-bottom:1px solid var(--border)">
+            <span style="font-size:0.58rem;text-transform:uppercase;letter-spacing:1px">TIMESTAMP</span>
+            <span style="font-size:0.58rem;text-transform:uppercase;letter-spacing:1px">ACTION</span>
+            <span style="font-size:0.58rem;text-transform:uppercase;letter-spacing:1px">USER</span>
+            <span style="font-size:0.58rem;text-transform:uppercase;letter-spacing:1px">DETAIL</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== MFA ====== -->
+    <div class="content-section" id="s-mfa">
+      <div class="section-hdr">
+        <div class="section-hdr-left">
+          <div class="section-hdr-title">MFA Management</div>
+          <div class="section-hdr-sub">MULTI-FACTOR AUTHENTICATION STATUS ACROSS ALL USERS</div>
+        </div>
+      </div>
+      <div style="padding:20px;overflow-y:auto;flex:1" id="mfa-container"></div>
+    </div>
+
+    <!-- ====== POLICY ====== -->
+    <div class="content-section" id="s-policy">
+      <div class="section-hdr">
+        <div class="section-hdr-left">
+          <div class="section-hdr-title">Security Policy</div>
+          <div class="section-hdr-sub">PASSWORD, SESSION, AND ACCESS CONTROL POLICIES</div>
+        </div>
+        <button class="btn btn-primary-sm" onclick="savePolicies()">💾 SAVE POLICIES</button>
+      </div>
+      <div style="padding:20px;overflow-y:auto;flex:1" id="policy-container"></div>
+    </div>
+
+  </div><!-- .content -->
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title" id="modal-title">Modal</div>
+      <button class="modal-close" onclick="closeModal()">✕ CLOSE</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// =================== DATA ===================
+const USERS = [
+  {id:1,name:'Admin User',email:'admin@deeptrace.io',role:'Admin',status:'Active',mfa:true,last:'Just now',avatar:'AU',color:'#ff3366',org:'DeepTrace HQ',created:'2024-01-01',sessions:2},
+  {id:2,name:'Sarah Chen',email:'s.chen@acmecorp.com',role:'SOC Manager',status:'Active',mfa:true,last:'14 min ago',avatar:'SC',color:'#ff6600',org:'Acme Corp',created:'2024-02-14',sessions:1},
+  {id:3,name:'Marcus Rodriguez',email:'m.rodriguez@secops.net',role:'Senior Analyst',status:'Active',mfa:true,last:'1 hour ago',avatar:'MR',color:'#aa55ff',org:'SecOps Net',created:'2024-03-01',sessions:1},
+  {id:4,name:'Priya Patel',email:'p.patel@techsec.io',role:'SOC Analyst',status:'Active',mfa:true,last:'2 hours ago',avatar:'PP',color:'#00d4ff',org:'TechSec IO',created:'2024-03-15',sessions:1},
+  {id:5,name:'James Kim',email:'j.kim@globalbank.com',role:'SOC Analyst',status:'Active',mfa:false,last:'Yesterday',avatar:'JK',color:'#00d4ff',org:'Global Bank',created:'2024-04-01',sessions:0},
+  {id:6,name:'Elena Vasquez',email:'e.vasquez@defense.gov',role:'Security Engineer',status:'Active',mfa:true,last:'2 days ago',avatar:'EV',color:'#00ffcc',org:'Defense Dept',created:'2024-04-10',sessions:1},
+  {id:7,name:'Tom Watkins',email:'t.watkins@corp.net',role:'Viewer',status:'Inactive',mfa:false,last:'1 week ago',avatar:'TW',color:'#666',org:'Corp Net',created:'2024-05-01',sessions:0},
+  {id:8,name:'Aisha Williams',email:'a.williams@bank.com',role:'SOC Analyst',status:'Locked',mfa:true,last:'3 days ago',avatar:'AW',color:'#ff3366',org:'National Bank',created:'2024-05-15',sessions:0},
+  {id:9,name:'David Park',email:'d.park@startup.io',role:'SOC Analyst',status:'Active',mfa:false,last:'5 hours ago',avatar:'DP',color:'#00d4ff',org:'StartupIO',created:'2024-06-01',sessions:1},
+  {id:10,name:'Lisa Thompson',email:'l.thompson@media.com',role:'Senior Analyst',status:'Active',mfa:true,last:'30 min ago',avatar:'LT',color:'#aa55ff',org:'MediaCo',created:'2024-06-15',sessions:1},
+];
+
+const PENDING_USERS = [
+  {name:'Alex Johnson',email:'a.johnson@techco.com',role:'SOC Analyst',org:'TechCo',submitted:'2026-06-01 14:23'},
+  {name:'Maria Santos',email:'m.santos@bank.br',role:'Security Engineer',org:'BankBR',submitted:'2026-06-02 09:11'},
+  {name:'Kevin Wu',email:'k.wu@enterprise.cn',role:'SOC Manager',org:'Enterprise CN',submitted:'2026-06-02 11:47'},
+];
+
+const ROLES = [
+  {name:'Admin',color:'var(--red)',users:1,perms:['Full system access','User management','Security policy','Audit log access','API key management','Firewall rule push','Block/unblock IPs','View all alerts','Generate reports','SIEM integration']},
+  {name:'SOC Manager',color:'var(--orange)',users:2,perms:['View all dashboards','Manage analysts','Approve incidents','Generate reports','View audit log','Assign cases','Configure alerts','Export data']},
+  {name:'Senior Analyst',color:'var(--purple)',users:2,perms:['Analyze packets','View threat intel','Block IPs (reviewed)','Manage cases','Run queries','View all alerts','Export reports']},
+  {name:'SOC Analyst',color:'var(--cyan)',users:5,perms:['View SOC dashboard','Analyze alerts','Run packet analysis','IOC lookup','Create incidents','View threat feeds']},
+  {name:'Security Engineer',color:'var(--cyan2)',users:1,perms:['API access','Configure DPI rules','Manage integrations','View metrics','Network topology','Deploy sensors']},
+  {name:'Viewer',color:'#888',users:1,perms:['View-only dashboard','Read-only reports','No data modification']},
+];
+
+const SESSIONS = [
+  {user:'Admin User',ip:'192.168.1.44',device:'Chrome / Windows 11',location:'New York, US',started:'Just now',status:'active',id:1},
+  {user:'Sarah Chen',ip:'10.0.0.55',device:'Firefox / macOS',location:'San Francisco, US',started:'14m ago',status:'active',id:2},
+  {user:'Marcus Rodriguez',ip:'172.16.8.22',device:'Chrome / Linux',location:'Austin, TX',started:'1h ago',status:'active',id:3},
+  {user:'Priya Patel',ip:'192.168.5.10',device:'Edge / Windows 10',location:'Chicago, US',started:'2h ago',status:'active',id:4},
+  {user:'Elena Vasquez',ip:'10.0.1.88',device:'Chrome / Ubuntu',location:'Washington DC, US',started:'2h ago',status:'active',id:5},
+  {user:'David Park',ip:'203.0.113.4',device:'Safari / macOS',location:'Seoul, KR',started:'5h ago',status:'active',id:6},
+  {user:'Lisa Thompson',ip:'192.168.2.77',device:'Chrome / Windows 11',location:'London, UK',started:'30m ago',status:'active',id:7},
+  {user:'James Kim',ip:'45.33.32.1',device:'Mobile / iOS',location:'Tokyo, JP',started:'8h ago',status:'active',id:8},
+];
+
+const AUDIT_DATA = [
+  {time:'14:22:09',action:'login',user:'admin',detail:'Login from 192.168.1.44 — MFA verified'},
+  {time:'14:18:45',action:'update',user:'admin',detail:'Updated role for Sarah Chen: Analyst → Manager'},
+  {time:'14:10:22',action:'create',user:'s.chen',detail:'New user created: Priya Patel (Analyst)'},
+  {time:'13:55:11',action:'lock',user:'admin',detail:'Account locked: Aisha Williams — 5 failed MFA attempts'},
+  {time:'13:44:02',action:'delete',user:'admin',detail:'Deleted inactive user: Bob Roberts'},
+  {time:'13:22:18',action:'login',user:'m.rodriguez',detail:'Login from 172.16.8.22 — MFA verified'},
+  {time:'12:58:03',action:'update',user:'admin',detail:'Password policy updated: min length 14 → 16'},
+  {time:'12:44:51',action:'login',user:'s.chen',detail:'Login from 10.0.0.55 — MFA verified'},
+  {time:'12:33:09',action:'create',user:'admin',detail:'API key created for SecOps team'},
+  {time:'11:55:44',action:'login',user:'e.vasquez',detail:'Login from 10.0.1.88 — MFA verified'},
+  {time:'11:22:31',action:'update',user:'admin',detail:'MFA required flag set for all Analyst roles'},
+  {time:'10:44:18',action:'delete',user:'admin',detail:'Revoked API key: dt_live_old_key_xxx'},
+];
+
+// =================== RENDER ===================
+let filteredUsers = [...USERS];
+let selectedUsers = new Set();
+
+function renderUsers(){
+  const tbody = document.getElementById('user-tbody');
+  tbody.innerHTML = filteredUsers.map(u=>`
+    <tr class="user-row fade-in ${selectedUsers.has(u.id)?'selected':''}" onclick="selectRow(${u.id})">
+      <td onclick="event.stopPropagation()">
+        <input type="checkbox" ${selectedUsers.has(u.id)?'checked':''} onchange="toggleSelect(${u.id},this)" style="accent-color:var(--cyan)">
+      </td>
+      <td>
+        <div class="ua-wrap">
+          <div class="ua" style="background:${u.color}22;color:${u.color};border:1px solid ${u.color}44">${u.avatar}</div>
+          <div>
+            <div class="ua-name">${u.name}</div>
+            <div class="ua-email">${u.email}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="role-badge role-${u.role.toLowerCase().replace(/\s+/g,'').replace('socmanager','manager').replace('socanalyst','analyst').replace('senioranalyst','senior').replace('securityengineer','engineer')}">${u.role}</span></td>
+      <td>
+        <div class="status-wrap">
+          <span class="s-dot ${u.status==='Active'?'s-active':u.status==='Locked'?'s-locked':u.status==='Pending'?'s-pending':'s-inactive'}"></span>
+          ${u.status}
+        </div>
+      </td>
+      <td>
+        ${u.mfa
+          ?'<span style="color:var(--green);font-family:\'Share Tech Mono\',monospace;font-size:0.65rem">✓ ON</span>'
+          :'<span style="color:var(--red);font-family:\'Share Tech Mono\',monospace;font-size:0.65rem">✗ OFF</span>'}
+      </td>
+      <td style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted)">${u.last}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn btn-sm btn-cyan" onclick="event.stopPropagation();openEditUser(${u.id})">✏ EDIT</button>
+          ${u.status==='Locked'
+            ?`<button class="btn btn-sm btn-green" onclick="event.stopPropagation();unlockUser(${u.id})">🔓</button>`
+            :`<button class="btn btn-sm btn-yellow" onclick="event.stopPropagation();lockUser(${u.id})">🔒</button>`}
+          <button class="btn btn-sm btn-red" onclick="event.stopPropagation();deleteUser(${u.id})">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function filterUsers(){
+  const q=document.getElementById('user-search').value.toLowerCase();
+  const role=document.getElementById('role-filter').value;
+  const status=document.getElementById('status-filter').value;
+  filteredUsers=USERS.filter(u=>{
+    const matchQ=!q||(u.name.toLowerCase().includes(q)||u.email.toLowerCase().includes(q)||u.role.toLowerCase().includes(q));
+    const matchRole=!role||u.role===role;
+    const matchStatus=!status||u.status===status;
+    return matchQ&&matchRole&&matchStatus;
+  });
+  renderUsers();
+}
+
+function selectRow(id){
+  toggleSelect(id,null);
+}
+function toggleSelect(id,cb){
+  if(selectedUsers.has(id))selectedUsers.delete(id);
+  else selectedUsers.add(id);
+  renderUsers();
+}
+function selectAll(cb){
+  if(cb.checked)filteredUsers.forEach(u=>selectedUsers.add(u.id));
+  else selectedUsers.clear();
+  renderUsers();
+}
+function sortTable(col){renderUsers();}
+function bulkAction(action){
+  if(!selectedUsers.size){showToast('No users selected','warn');return;}
+  if(action==='delete')confirmAction(`Delete ${selectedUsers.size} users?`,'This action cannot be undone.',()=>{selectedUsers.forEach(id=>{const i=USERS.findIndex(u=>u.id===id);if(i>-1)USERS.splice(i,1);});selectedUsers.clear();filteredUsers=USERS;renderUsers();showToast(`${selectedUsers.size||'Selected'} users deleted`,'success');});
+}
+
+// PENDING
+function renderPending(){
+  const el=document.getElementById('pending-list');
+  el.innerHTML=PENDING_USERS.map((u,i)=>`
+    <div style="background:var(--bg2);border:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:16px" class="fade-in">
+      <div style="width:40px;height:40px;background:rgba(255,204,0,0.15);border:1px solid rgba(255,204,0,0.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:0.8rem;color:var(--yellow)">${u.name.split(' ').map(n=>n[0]).join('')}</div>
+      <div style="flex:1">
+        <div style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:1rem;color:#fff;margin-bottom:2px">${u.name}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted)">${u.email} · ${u.org} · Requested: ${u.role}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted)">Submitted: ${u.submitted}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green" onclick="approvePending(${i})">✓ APPROVE</button>
+        <button class="btn btn-red" onclick="denyPending(${i})">✗ DENY</button>
+      </div>
+    </div>`).join('');
+}
+function approvePending(i){
+  const u=PENDING_USERS[i];
+  USERS.push({id:USERS.length+1,name:u.name,email:u.email,role:u.role,status:'Active',mfa:false,last:'Never',avatar:u.name.split(' ').map(n=>n[0]).join(''),color:'#00d4ff',org:u.org,created:new Date().toISOString().split('T')[0],sessions:0});
+  PENDING_USERS.splice(i,1);
+  renderPending();
+  filteredUsers=[...USERS];
+  renderUsers();
+  showToast(`✅ ${u.name} approved and activated`,'success');
+  addAudit('create','admin',`New user approved: ${u.name}`);
+}
+function denyPending(i){
+  const u=PENDING_USERS[i];
+  PENDING_USERS.splice(i,1);
+  renderPending();
+  showToast(`❌ ${u.name} request denied`,'warn');
+  addAudit('delete','admin',`Access request denied: ${u.name}`);
+}
+
+// ROLES
+function renderRoles(){
+  document.getElementById('roles-container').innerHTML=ROLES.map(r=>`
+    <div style="background:var(--bg2);border:1px solid var(--border);margin-bottom:12px;overflow:hidden" class="fade-in">
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);cursor:pointer;background:var(--surface)" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'grid':'none'">
+        <div style="width:10px;height:10px;background:${r.color};border-radius:50%;box-shadow:0 0 8px ${r.color}"></div>
+        <div style="font-family:'Orbitron',monospace;font-size:0.85rem;color:#fff;letter-spacing:1px;flex:1">${r.name}</div>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted)">${r.users} user${r.users!==1?'s':''}</span>
+        <button class="btn btn-sm btn-cyan" onclick="event.stopPropagation();showToast('Edit role permissions','info')">✏ EDIT</button>
+        <span style="color:var(--muted);font-size:0.8rem">▼</span>
+      </div>
+      <div style="display:none;padding:16px 20px;grid-template-columns:repeat(2,1fr);gap:8px">
+        ${r.perms.map(p=>`<div style="display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text)"><span style="color:var(--green)">✓</span>${p}</div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+// SESSIONS
+function renderSessions(){
+  document.getElementById('session-tbody').innerHTML=SESSIONS.map(s=>`
+    <tr style="cursor:default">
+      <td style="color:#fff;font-family:'Rajdhani',sans-serif;font-weight:600">${s.user}</td>
+      <td style="color:var(--cyan2)">${s.ip}</td>
+      <td style="color:var(--muted)">${s.device}</td>
+      <td style="color:var(--muted)">${s.location}</td>
+      <td style="color:var(--muted)">${s.started}</td>
+      <td><div class="sess-active">Live</div></td>
+      <td><button class="btn btn-sm btn-red" onclick="terminateSession(${s.id},'${s.user}')">⛔ KILL</button></td>
+    </tr>`).join('');
+}
+function terminateSession(id,user){
+  const idx=SESSIONS.findIndex(s=>s.id===id);
+  if(idx>-1)SESSIONS.splice(idx,1);
+  renderSessions();
+  showToast(`Session terminated: ${user}`,'warn');
+}
+
+// AUDIT
+function renderAudit(){
+  const list=document.getElementById('audit-list');
+  const existing=list.querySelectorAll('.audit-row');
+  existing.forEach(e=>e.remove());
+  AUDIT_DATA.forEach(a=>{
+    const row=document.createElement('div');
+    row.className='audit-row';
+    row.innerHTML=`<span class="au-time">${a.time}</span><span class="au-action au-${a.action}">${a.action.toUpperCase()}</span><span class="au-user">${a.user}</span><span class="au-detail">${a.detail}</span>`;
+    list.appendChild(row);
+  });
+}
+function addAudit(action,user,detail){
+  AUDIT_DATA.unshift({time:new Date().toLocaleTimeString('en-US',{hour12:false}),action,user,detail});
+  renderAudit();
+}
+
+// MFA
+function renderMFA(){
+  const users=USERS.filter(u=>u.status!=='Pending');
+  document.getElementById('mfa-container').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:14px;text-align:center">
+        <div style="font-family:'Orbitron',monospace;font-size:1.6rem;color:var(--green)">${users.filter(u=>u.mfa).length}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);margin-top:4px">MFA ENABLED</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:14px;text-align:center">
+        <div style="font-family:'Orbitron',monospace;font-size:1.6rem;color:var(--red)">${users.filter(u=>!u.mfa).length}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);margin-top:4px">MFA DISABLED</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);padding:14px;text-align:center">
+        <div style="font-family:'Orbitron',monospace;font-size:1.6rem;color:var(--cyan)">${Math.round(users.filter(u=>u.mfa).length/users.length*100)}%</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--muted);margin-top:4px">COVERAGE</div>
+      </div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);overflow:hidden">
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:0.63rem;color:var(--cyan);text-transform:uppercase;letter-spacing:2px;display:flex;justify-content:space-between;align-items:center">
+        User MFA Status
+        <button class="btn btn-sm btn-cyan" onclick="confirmAction('Enforce MFA for ALL users?','Users without MFA will be required to enroll at next login.',()=>{USERS.forEach(u=>u.mfa=true);renderMFA();showToast('MFA enforced for all users','success');})">⚡ ENFORCE ALL</button>
+      </div>
+      ${users.map(u=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(0,200,255,0.04)">
+        <div style="width:28px;height:28px;background:${u.color}22;border:1px solid ${u.color}44;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:${u.color};font-family:'Orbitron',monospace">${u.avatar}</div>
+        <div style="flex:1">
+          <div style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:0.9rem;color:#fff">${u.name}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--muted)">${u.email}</div>
+        </div>
+        <span class="role-badge role-${u.role.toLowerCase().replace(/\s+/g,'').replace('socmanager','manager').replace('socanalyst','analyst').replace('senioranalyst','senior').replace('securityengineer','engineer')}">${u.role}</span>
+        ${u.mfa
+          ?`<span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--green)">✓ TOTP Active</span>
+             <button class="btn btn-sm btn-yellow" onclick="resetMFA(${u.id})">RESET</button>`
+          :`<span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--red)">✗ Not Enrolled</span>
+             <button class="btn btn-sm btn-cyan" onclick="enforceMFA(${u.id})">ENFORCE</button>`}
+      </div>`).join('')}
+    </div>`;
+}
+function resetMFA(id){const u=USERS.find(u=>u.id===id);if(u){u.mfa=false;renderMFA();showToast(`MFA reset for ${u.name}. Re-enrollment required.`,'warn');addAudit('update','admin',`MFA reset for user: ${u.name}`);}}
+function enforceMFA(id){const u=USERS.find(u=>u.id===id);if(u){u.mfa=true;renderMFA();showToast(`MFA enrolled for ${u.name}`,'success');}}
+
+// POLICY
+function renderPolicy(){
+  document.getElementById('policy-container').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${[
+        {title:'Password Policy',icon:'🔑',fields:[
+          {label:'Minimum Length',type:'number',val:'14'},
+          {label:'Require Uppercase',type:'toggle',val:true},
+          {label:'Require Numbers',type:'toggle',val:true},
+          {label:'Require Symbols',type:'toggle',val:true},
+          {label:'Max Age (days)',type:'number',val:'90'},
+          {label:'Password History',type:'number',val:'12'},
+        ]},
+        {title:'Session Policy',icon:'🔗',fields:[
+          {label:'Session Timeout (min)',type:'number',val:'30'},
+          {label:'Max Concurrent Sessions',type:'number',val:'3'},
+          {label:'Remember Device (days)',type:'number',val:'30'},
+          {label:'Force Re-auth on Role Change',type:'toggle',val:true},
+          {label:'IP Binding',type:'toggle',val:false},
+        ]},
+        {title:'Login Policy',icon:'🚪',fields:[
+          {label:'Max Failed Attempts',type:'number',val:'5'},
+          {label:'Lockout Duration (min)',type:'number',val:'30'},
+          {label:'Allow SSO Only',type:'toggle',val:false},
+          {label:'Require MFA',type:'toggle',val:true},
+          {label:'IP Allowlist Enabled',type:'toggle',val:false},
+        ]},
+        {title:'Audit & Compliance',icon:'📋',fields:[
+          {label:'Audit Log Retention (days)',type:'number',val:'365'},
+          {label:'Export Logs to SIEM',type:'toggle',val:true},
+          {label:'Alert on Privileged Access',type:'toggle',val:true},
+          {label:'GDPR Mode',type:'toggle',val:true},
+          {label:'HIPAA Compliance',type:'toggle',val:false},
+        ]},
+      ].map(section=>`
+        <div style="background:var(--bg2);border:1px solid var(--border)">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--cyan);text-transform:uppercase;letter-spacing:2px">${section.icon} ${section.title}</div>
+          <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+            ${section.fields.map(f=>f.type==='toggle'?`
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text)">${f.label}</span>
+                <label style="position:relative;display:inline-block;width:36px;height:18px;cursor:pointer">
+                  <input type="checkbox" ${f.val?'checked':''} style="opacity:0;width:0;height:0">
+                  <span style="position:absolute;inset:0;background:${f.val?'var(--cyan)':'rgba(0,0,0,0.5)'};border:1px solid var(--border);border-radius:9px;transition:all 0.2s;cursor:pointer" onclick="this.style.background=this.previousElementSibling.checked?'rgba(0,0,0,0.5)':'var(--cyan)';this.previousElementSibling.checked=!this.previousElementSibling.checked">
+                    <span style="position:absolute;width:12px;height:12px;background:#fff;border-radius:50%;top:2px;left:${f.val?'20':'2'}px;transition:left 0.2s"></span>
+                  </span>
+                </label>
+              </div>`:`
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text)">${f.label}</span>
+                <input type="number" value="${f.val}" style="width:70px;background:rgba(0,0,0,0.5);border:1px solid var(--border);color:var(--cyan);padding:4px 8px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;text-align:center" onfocus="this.style.borderColor='var(--cyan)'" onblur="this.style.borderColor='var(--border)'">
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+function savePolicies(){showToast('✅ Security policies saved and applied','success');addAudit('update','admin','Security policy configuration updated');}
+
+// USER ACTIONS
+function lockUser(id){
+  const u=USERS.find(u=>u.id===id);
+  if(u){u.status='Locked';filteredUsers=[...USERS];renderUsers();showToast(`🔒 ${u.name} locked`,'warn');addAudit('lock','admin',`Account locked: ${u.name}`);}
+}
+function unlockUser(id){
+  const u=USERS.find(u=>u.id===id);
+  if(u){u.status='Active';filteredUsers=[...USERS];renderUsers();showToast(`🔓 ${u.name} unlocked`,'success');addAudit('update','admin',`Account unlocked: ${u.name}`);}
+}
+function deleteUser(id){
+  const u=USERS.find(u=>u.id===id);
+  if(!u)return;
+  confirmAction(`Delete ${u.name}?`,'This action permanently removes the user and all their data.',()=>{
+    USERS.splice(USERS.indexOf(u),1);filteredUsers=[...USERS];renderUsers();
+    showToast(`🗑 ${u.name} deleted`,'success');addAudit('delete','admin',`User deleted: ${u.name} (${u.email})`);
+  });
+}
+
+// MODALS
+function openModal(type){
+  const overlay=document.getElementById('modal-overlay');
+  const box=document.getElementById('modal-box');
+  box.className='modal';
+  if(type==='create'||type==='invite'){
+    document.getElementById('modal-title').textContent=type==='create'?'+ CREATE NEW USER':'✉ INVITE USER';
+    document.getElementById('modal-body').innerHTML=`
+      <div class="modal-grid">
+        <div class="m-field"><label class="m-label">First Name</label><input class="m-input" id="mf-fname" placeholder="John"></div>
+        <div class="m-field"><label class="m-label">Last Name</label><input class="m-input" id="mf-lname" placeholder="Smith"></div>
+        <div class="m-field full"><label class="m-label">Email Address</label><input class="m-input" id="mf-email" placeholder="john@company.com" type="email"></div>
+        <div class="m-field"><label class="m-label">Role</label>
+          <select class="m-select" id="mf-role">
+            <option>SOC Analyst</option><option>Senior Analyst</option><option>SOC Manager</option>
+            <option>Security Engineer</option><option>Admin</option><option>Viewer</option>
+          </select>
+        </div>
+        <div class="m-field"><label class="m-label">Organization</label><input class="m-input" id="mf-org" placeholder="Company Name"></div>
+        ${type==='create'?`
+        <div class="m-field"><label class="m-label">Temporary Password</label><input class="m-input" id="mf-pass" type="password" placeholder="Auto-generate" value="TempPass@2026!"></div>
+        <div class="m-field"><label class="m-label">Require Password Reset</label>
+          <select class="m-select"><option>Yes — on first login</option><option>No</option></select>
+        </div>`:''}
+        <div class="m-field"><label class="m-label">Require MFA</label>
+          <select class="m-select" id="mf-mfa"><option value="true">Yes — Required</option><option value="false">No</option></select>
+        </div>
+        <div class="m-field full">
+          <label class="m-label">Permissions</label>
+          <div class="perm-grid">
+            <div class="perm-item"><input type="checkbox" checked id="p-soc"><label for="p-soc">SOC Dashboard Access</label></div>
+            <div class="perm-item"><input type="checkbox" checked id="p-pkt"><label for="p-pkt">Packet Analysis</label></div>
+            <div class="perm-item"><input type="checkbox" checked id="p-ti"><label for="p-ti">Threat Intelligence</label></div>
+            <div class="perm-item"><input type="checkbox" id="p-blk"><label for="p-blk">Block/Unblock IPs</label></div>
+            <div class="perm-item"><input type="checkbox" id="p-usr"><label for="p-usr">User Management</label></div>
+            <div class="perm-item"><input type="checkbox" checked id="p-rpt"><label for="p-rpt">Generate Reports</label></div>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('modal-footer').innerHTML=`
+      <button class="btn btn-ghost" onclick="closeModal()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.7rem;letter-spacing:1px;cursor:pointer;padding:8px 16px;text-transform:uppercase">CANCEL</button>
+      <button class="btn btn-primary-sm" onclick="saveNewUser('${type}')">✓ ${type==='create'?'CREATE USER':'SEND INVITE'}</button>`;
+  }
+  overlay.classList.add('show');
+}
+
+function openEditUser(id){
+  const u=USERS.find(u=>u.id===id);if(!u)return;
+  document.getElementById('modal-title').textContent=`✏ EDIT USER — ${u.name.toUpperCase()}`;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-grid">
+      <div class="m-field full" style="text-align:center;padding-bottom:16px;border-bottom:1px solid var(--border)">
+        <div style="width:60px;height:60px;background:${u.color}22;border:2px solid ${u.color}44;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:1.1rem;color:${u.color};margin:0 auto 8px">${u.avatar}</div>
+        <div style="font-family:'Orbitron',monospace;font-size:0.9rem;color:#fff">${u.name}</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--muted)">${u.email}</div>
+      </div>
+      <div class="m-field"><label class="m-label">Role</label>
+        <select class="m-select" id="eu-role">
+          <option ${u.role==='Admin'?'selected':''}>Admin</option>
+          <option ${u.role==='SOC Manager'?'selected':''}>SOC Manager</option>
+          <option ${u.role==='Senior Analyst'?'selected':''}>Senior Analyst</option>
+          <option ${u.role==='SOC Analyst'?'selected':''}>SOC Analyst</option>
+          <option ${u.role==='Security Engineer'?'selected':''}>Security Engineer</option>
+          <option ${u.role==='Viewer'?'selected':''}>Viewer</option>
+        </select>
+      </div>
+      <div class="m-field"><label class="m-label">Status</label>
+        <select class="m-select" id="eu-status">
+          <option ${u.status==='Active'?'selected':''}>Active</option>
+          <option ${u.status==='Inactive'?'selected':''}>Inactive</option>
+          <option ${u.status==='Locked'?'selected':''}>Locked</option>
+        </select>
+      </div>
+      <div class="m-field"><label class="m-label">MFA</label>
+        <select class="m-select" id="eu-mfa">
+          <option value="true" ${u.mfa?'selected':''}>Enabled</option>
+          <option value="false" ${!u.mfa?'selected':''}>Disabled</option>
+        </select>
+      </div>
+      <div class="m-field"><label class="m-label">Organization</label><input class="m-input" value="${u.org}"></div>
+    </div>`;
+  document.getElementById('modal-footer').innerHTML=`
+    <button class="btn btn-red" onclick="closeModal();deleteUser(${u.id})" style="background:rgba(255,51,102,0.1);border:1px solid rgba(255,51,102,0.3);color:var(--red);font-family:'Share Tech Mono',monospace;font-size:0.7rem;cursor:pointer;padding:8px 14px;text-transform:uppercase">🗑 DELETE</button>
+    <button style="flex:1"></button>
+    <button class="btn btn-ghost" onclick="closeModal()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.7rem;cursor:pointer;padding:8px 16px;text-transform:uppercase">CANCEL</button>
+    <button class="btn btn-primary-sm" onclick="saveEditUser(${u.id})">💾 SAVE CHANGES</button>`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function saveEditUser(id){
+  const u=USERS.find(u=>u.id===id);if(!u)return;
+  const newRole=document.getElementById('eu-role').value;
+  const newStatus=document.getElementById('eu-status').value;
+  const newMFA=document.getElementById('eu-mfa').value==='true';
+  addAudit('update','admin',`Updated ${u.name}: Role → ${newRole}, Status → ${newStatus}, MFA → ${newMFA}`);
+  u.role=newRole;u.status=newStatus;u.mfa=newMFA;
+  filteredUsers=[...USERS];renderUsers();closeModal();
+  showToast(`✅ ${u.name} updated successfully`,'success');
+}
+
+function saveNewUser(type){
+  const fname=document.getElementById('mf-fname')?.value||'';
+  const lname=document.getElementById('mf-lname')?.value||'';
+  const email=document.getElementById('mf-email')?.value||'';
+  const role=document.getElementById('mf-role')?.value||'SOC Analyst';
+  const org=document.getElementById('mf-org')?.value||'Unknown';
+  const mfa=document.getElementById('mf-mfa')?.value==='true';
+  if(!fname||!email){showToast('⚠ Name and email required','warn');return;}
+  const newUser={id:USERS.length+1,name:`${fname} ${lname}`.trim(),email,role,status:'Active',mfa,last:'Never',avatar:(fname[0]+(lname[0]||'')).toUpperCase(),color:'#00d4ff',org,created:new Date().toISOString().split('T')[0],sessions:0};
+  USERS.push(newUser);filteredUsers=[...USERS];renderUsers();closeModal();
+  showToast(type==='create'?`✅ User ${newUser.name} created`:`✉ Invite sent to ${email}`,'success');
+  addAudit('create','admin',`New user ${type==='create'?'created':'invited'}: ${newUser.name} (${role})`);
+}
+
+function closeModal(){document.getElementById('modal-overlay').classList.remove('show');}
+document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.target.id==='modal-overlay')closeModal();});
+
+// CONFIRM
+let confirmCb=null;
+function confirmAction(title,text,cb){
+  confirmCb=cb;
+  document.getElementById('modal-title').textContent='⚠ CONFIRM ACTION';
+  document.getElementById('modal-box').classList.add('confirm-modal');
+  document.getElementById('modal-body').innerHTML=`
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title">${title}</div>
+    <div class="confirm-text">${text}</div>`;
+  document.getElementById('modal-footer').innerHTML=`
+    <button class="btn btn-ghost" onclick="closeModal()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.7rem;cursor:pointer;padding:8px 16px;text-transform:uppercase">CANCEL</button>
+    <button class="btn btn-red" onclick="closeModal();if(confirmCb)confirmCb()" style="background:rgba(255,51,102,0.15);border:1px solid rgba(255,51,102,0.4);color:var(--red);font-family:'Share Tech Mono',monospace;font-size:0.7rem;cursor:pointer;padding:8px 16px;text-transform:uppercase;letter-spacing:1px">✓ CONFIRM</button>`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+// TOAST
+let toastTimer;
+function showToast(msg,type='info'){
+  const t=document.getElementById('toast');
+  clearTimeout(toastTimer);
+  t.textContent=msg;t.className=`toast ${type} show`;
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// SECTION NAV
+function showSection(id,el){
+  document.querySelectorAll('.content-section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s-'+id).classList.add('active');
+  document.querySelectorAll('.sb-link').forEach(l=>l.classList.remove('active'));
+  el.classList.add('active');
+  if(id==='pending')renderPending();
+  if(id==='roles')renderRoles();
+  if(id==='sessions')renderSessions();
+  if(id==='audit')renderAudit();
+  if(id==='mfa')renderMFA();
+  if(id==='policy')renderPolicy();
+}
+
+// INIT
+filteredUsers=[...USERS];
+renderUsers();
+renderAudit();
+</script>
+</body>
+</html>
